@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
+    "dev:lan": "astro dev --host",
     "build": "astro build",
     "preview": "astro preview",
+    "preview:lan": "astro preview --host",
     "check": "npm run check:contrast && npm run check:behaviour",
     "check:contrast": "node scripts/check-contrast.mjs",
     "check:behaviour": "node scripts/check-behaviour.mjs"

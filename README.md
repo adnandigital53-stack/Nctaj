@@ -16,6 +16,24 @@ npm run build      # static output to dist/
 npm run preview    # serve the built site
 ```
 
+### Viewing it on a phone
+
+This is a mobile-first site, so check it on a real phone rather than only in
+a desktop window.
+
+```bash
+npm run dev:lan        # or: npm run preview:lan for the built site
+```
+
+`--host` binds to `0.0.0.0` instead of localhost, and Astro prints a second
+**Network:** URL (e.g. `http://192.168.1.x:4321/`). Open that on your phone
+with both devices on the same Wi-Fi.
+
+If it doesn't load: the two devices are on different networks (guest Wi-Fi and
+main, or the phone is on mobile data), or the machine's firewall is blocking
+the port — macOS and Windows both prompt the first time, and the prompt has to
+be allowed.
+
 ## Checks
 
 Both run against a **running preview server** (`npm run preview` in another
