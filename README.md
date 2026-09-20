@@ -97,11 +97,16 @@ This build is a **preview**. The orange banner is rendered automatically while
 - [ ] Real photography (see the shot list in the plan) — **no stock food photos**
 - [ ] Phone, WhatsApp, address, hours in `site.json`
 - [ ] Swiggy / Zomato / Magicpin listing URLs in `site.json`
-- [ ] GA4 measurement ID in `site.json` (until then, events queue to `dataLayer`)
+- [ ] Real About copy — the current story is placeholder prose
 - [ ] `"status": "live"`
 
-Deferred, in order: legal pages → a self-serve menu editor → domain → cart
-and checkout. See the plan. (Link previews and the FSSAI number are done.)
+Deferred, in order: GA4 measurement ID → Maps link and social → legal pages →
+a self-serve menu editor → domain → cart and checkout. See the plan.
+(Link previews and the FSSAI number are done.)
+
+Analytics is not launch-blocking: with no `ga4MeasurementId`, click events
+still fire and queue to `dataLayer`, so adding the ID later starts collection
+without any other change.
 
 ## Link previews
 

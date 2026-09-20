@@ -222,19 +222,22 @@ above the fold, not buried on About.
 |---|---|---|---|---|
 | 1 | Exact menu + prices | TBD | TBD | **Yes — blocks the build** |
 | 2 | Food photography (see shot list) | TBD | TBD | **Yes — blocks the build** |
-| 3 | Location, hours, phone/WhatsApp number | TBD | TBD | **Yes — blocks launch** |
-| 4 | Swiggy/Zomato/Magicpin profile links | TBD | TBD | **Yes — blocks launch** |
-| 5 | Copy: tagline, About story, category blurbs | TBD | TBD | Yes |
-| 6 | Logo — wordmark now, or launch on type only | TBD | TBD | No |
-| 7 | GA4 property created | TBD | TBD | No |
-| 8 | Google Business Profile | TBD | TBD | No |
+| 3 | Copy: tagline, About story, category blurbs | TBD | TBD | **Yes** — currently placeholder prose |
+| 4 | Logo — wordmark now, or launch on type only | TBD | TBD | No |
+| 5 | Google Business Profile | TBD | TBD | No |
+
+**Done:** location, hours and both phone numbers · WhatsApp · Swiggy / Zomato /
+Magicpin listing links · FSSAI licence number · link previews (image built;
+activates when `siteUrl` is set).
 
 ## Deferred — after the main site is done, in this order
 
-1. **OG / WhatsApp link previews** — `og:image`, `og:title`, `og:description`.
-   Without them a shared link renders as a bare grey URL in WhatsApp.
-2. **FSSAI licence number** on the site — to be confirmed with whoever holds the
-   licence; plan for a footer line.
+1. **GA4 measurement ID.** The property has to be created in the owner's Google
+   account; the site then needs only the `G-XXXXXXXXXX` string. Until it lands,
+   click events still fire and queue to `dataLayer` — nothing is lost from the
+   code side, but nothing is being recorded either.
+2. **Google Maps link, Instagram and Facebook** — small additions to
+   `site.json`; the Contact page and footer pick them up automatically.
 3. **Legal pages** — Terms, Privacy Policy, Refund & Cancellation, Shipping &
    Delivery. Not just good practice: Razorpay and Cashfree will not activate an
    account without them live on the site.
