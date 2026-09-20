@@ -29,7 +29,7 @@ import menu from '../data/menu.json';
           <p class="menu-category__blurb">{cat.blurb}</p>
         </div>
         <div class="grid grid--3">
-          {cat.items.filter((i) => i.available).map((item) => <MenuItem item={item} />)}
+          {cat.items.filter((i) => i.available).map((item, i) => <MenuItem item={item} index={i} />)}
         </div>
       </section>
     ))}
@@ -40,38 +40,55 @@ import menu from '../data/menu.json';
   </div>
 
   <script is:inline>
-    const buttons = document.querySelectorAll('.filter');
-    const items = document.querySelectorAll('.item');
-    const categories = document.querySelectorAll('[data-category]');
-    const status = document.getElementById('filter-status');
+    // Registered on the document once, then re-run for every navigation —
+    // a soft navigation onto /menu gets working filters either way.
+    (() => {
+      if (window.__nctajMenu) return;
+      window.__nctajMenu = true;
 
-    const apply = (mode) => {
-      items.forEach((item) => {
-        const isVeg = item.dataset.veg === 'true';
-        const show = mode === 'all' || (mode === 'veg' && isVeg) || (mode === 'nonveg' && !isVeg);
-        item.hidden = !show;
-      });
+      const initFilters = () => {
+        const buttons = document.querySelectorAll('.filter');
+        if (!buttons.length) return;
 
-      // Hide a category heading entirely when the filter empties it.
-      let shown = 0;
-      categories.forEach((cat) => {
-        const visible = cat.querySelectorAll('.item:not([hidden])').length;
-        cat.hidden = visible === 0;
-        shown += visible;
-      });
+        const items = document.querySelectorAll('.item');
+        const categories = document.querySelectorAll('[data-category]');
+        const status = document.getElementById('filter-status');
 
-      if (status) status.textContent = `${shown} items shown`;
-    };
+        const apply = (mode) => {
+          items.forEach((item) => {
+            const isVeg = item.dataset.veg === 'true';
+            const show = mode === 'all' || (mode === 'veg' && isVeg) || (mode === 'nonveg' && !isVeg);
+            item.hidden = !show;
+          });
 
-    buttons.forEach((btn) => {
-      btn.addEventListener('click', () => {
-        buttons.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
-        const mode = btn.dataset.filter;
-        apply(mode);
-        if (typeof window.gtag === 'function') {
-          window.gtag('event', 'menu_filter', { filter: mode });
-        }
-      });
-    });
+          // Hide a category heading entirely when the filter empties it.
+          let shown = 0;
+          categories.forEach((cat) => {
+            const visible = cat.querySelectorAll('.item:not([hidden])').length;
+            cat.hidden = visible === 0;
+            shown += visible;
+          });
+
+          if (status) status.textContent = `${shown} items shown`;
+        };
+
+        buttons.forEach((btn) => {
+          if (btn.dataset.bound) return;
+          btn.dataset.bound = '1';
+          btn.addEventListener('click', () => {
+            buttons.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+            const mode = btn.dataset.filter;
+            apply(mode);
+            if (typeof window.gtag === 'function') {
+              window.gtag('event', 'menu_filter', { filter: mode });
+            }
+          });
+        });
+      };
+
+      document.addEventListener('astro:page-load', initFilters);
+      if (document.readyState !== 'loading') initFilters();
+      else document.addEventListener('DOMContentLoaded', initFilters, { once: true });
+    })();
   </script>
 </Base>

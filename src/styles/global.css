@@ -443,7 +443,13 @@ img { max-width: 100%; display: block; }
   transition: transform 0.35s var(--ease), border-color 0.35s var(--ease);
 }
 
-.card:hover { transform: translateY(-4px); border-color: rgba(232, 163, 61, 0.35); }
+.card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(232, 163, 61, 0.34);
+  box-shadow:
+    0 26px 50px -32px rgba(0, 0, 0, 0.95),
+    0 0 0 1px rgba(232, 163, 61, 0.10);
+}
 
 .card__body { padding: 1.5rem; }
 
@@ -464,9 +470,29 @@ img { max-width: 100%; display: block; }
   overflow: hidden;
 }
 
-.photo img { width: 100%; height: 100%; object-fit: cover; }
+.photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.8s var(--ease);
+}
+
+/* Warm wash that rises over the image on hover. */
+.photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(232, 163, 61, 0.13), transparent 62%);
+  opacity: 0;
+  transition: opacity 0.5s var(--ease);
+  pointer-events: none;
+}
+
+.card:hover .photo::after { opacity: 1; }
+.card:hover .photo img { transform: scale(1.06); }
 
 .photo__mark {
+  transition: color 0.5s var(--ease), transform 0.8s var(--ease);
   font-family: var(--font-display);
   font-size: clamp(3rem, 12vw, 5rem);
   line-height: 1;
@@ -781,3 +807,120 @@ body { padding-bottom: 0; }
 
 .page-head { padding-top: calc(var(--header-h) + 56px); }
 .page-head--flush { padding-bottom: 1.5rem; }
+
+
+/* ==========================================================================
+   Motion & interaction
+   Everything here is transform/opacity only so it stays on the compositor,
+   and all of it is switched off under prefers-reduced-motion at the bottom.
+   ========================================================================== */
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translate3d(0, 20px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* A slow convection in the hero's floor-glow — reads as heat, not as an
+   animation. 26s so it is never caught moving. */
+@keyframes emberDrift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(0, -2.5%, 0) scale(1.07); }
+}
+
+@keyframes sheen {
+  from { transform: translateX(-130%) skewX(-18deg); }
+  to   { transform: translateX(240%) skewX(-18deg); }
+}
+
+/* ---------- hero ---------- */
+
+.hero::before {
+  animation: emberDrift 26s ease-in-out infinite;
+  will-change: transform;
+}
+
+.hero__inner > * { animation: fadeUp 0.9s var(--ease) both; }
+.hero__inner > *:nth-child(1) { animation-delay: 0.06s; }
+.hero__inner > *:nth-child(2) { animation-delay: 0.16s; }
+.hero__inner > *:nth-child(3) { animation-delay: 0.26s; }
+.hero__inner > *:nth-child(4) { animation-delay: 0.36s; }
+.hero__inner > *:nth-child(5) { animation-delay: 0.46s; }
+
+/* ---------- buttons ---------- */
+
+.btn { position: relative; overflow: hidden; isolation: isolate; }
+
+.btn--primary:hover {
+  box-shadow: 0 14px 34px -12px rgba(232, 163, 61, 0.55);
+}
+
+.btn--primary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 36%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.38), transparent);
+  transform: translateX(-130%) skewX(-18deg);
+  pointer-events: none;
+}
+
+.btn--primary:hover::after { animation: sheen 0.8s var(--ease); }
+
+.btn--ghost:hover { box-shadow: 0 12px 30px -18px rgba(232, 163, 61, 0.5); }
+
+/* ---------- menu ---------- */
+
+/* Also replays when the veg filter un-hides an item, because an element
+   leaving display:none restarts its animation. */
+.item {
+  animation: fadeUp 0.5s var(--ease) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+.filter[aria-pressed='true'] {
+  box-shadow: 0 8px 22px -10px rgba(232, 163, 61, 0.65);
+}
+
+.menu-category__blurb { transition: color 0.4s var(--ease); }
+
+/* ---------- order page ---------- */
+
+.platform__arrow { transition: transform 0.35s var(--ease); }
+.platform:hover .platform__arrow { transform: translateX(6px); }
+
+/* ---------- contact ---------- */
+
+.detail { transition: border-color 0.4s var(--ease); }
+.detail:hover { border-bottom-color: rgba(232, 163, 61, 0.35); }
+.detail__value a { transition: color 0.3s var(--ease); }
+
+/* ---------- wordmark ---------- */
+
+.wordmark__name, .wordmark__since { transition: color 0.35s var(--ease); }
+.wordmark:hover .wordmark__name { color: var(--saffron); }
+
+/* ---------- staggered scroll reveal ---------- */
+
+.reveal { transition-delay: calc(var(--i, 0) * 90ms); }
+
+/* ---------- cross-page transitions ---------- */
+
+@view-transition { navigation: auto; }
+
+::view-transition-old(root) { animation: none; opacity: 1; }
+::view-transition-new(root) { animation: fadeUp 0.45s var(--ease); }
+
+/* ---------- reduced motion wins over all of the above ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+  .hero::before { animation: none !important; }
+  .hero__inner > *, .item { opacity: 1 !important; transform: none !important; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none !important; }
+}

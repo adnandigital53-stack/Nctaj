@@ -93,6 +93,35 @@ check(
   event?.event === 'order_click' && event?.placement === 'hero',
   JSON.stringify(event),
 );
+// ---- client-side navigation (ClientRouter) ----
+// Soft navigation doesn't re-run inline scripts the way a full load does,
+// so the filter and the persisted header are re-checked after a link click.
+await p.goto(`${BASE}/`, { waitUntil: 'load' });
+await p.locator('a[href="/menu"]').first().click();
+await p.waitForURL('**/menu');
+await p.waitForTimeout(500);
+
+check('soft nav renders the menu', (await p.locator('.item').count()) === TOTAL);
+
+await p.getByRole('button', { name: 'Veg', exact: true }).click();
+await p.waitForTimeout(250);
+check(
+  'filter works after soft nav',
+  (await p.locator('.item:not([hidden])').count()) === VEG,
+  `saw ${await p.locator('.item:not([hidden])').count()}, expected ${VEG}`,
+);
+
+check(
+  'header survives soft nav',
+  (await p.locator('.header').count()) === 1 && (await p.locator('.burger').count()) === 1,
+);
+
+// --header-h must still be a real measurement, not the CSS fallback
+const hh = await p.evaluate(() =>
+  getComputedStyle(document.documentElement).getPropertyValue('--header-h').trim(),
+);
+check('header height re-measured after soft nav', /^\d+(\.\d+)?px$/.test(hh) && parseFloat(hh) > 40, `--header-h = ${hh}`);
+
 await ctx.close();
 
 // ---- mobile ----

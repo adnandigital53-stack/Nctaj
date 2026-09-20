@@ -2,10 +2,10 @@
 import PhotoSlot from './PhotoSlot.astro';
 import VegMark from './VegMark.astro';
 
-const { item } = Astro.props;
+const { item, index = 0 } = Astro.props;
 const hasPrice = typeof item.price === 'number';
 ---
-<article class="card item" data-veg={String(item.veg)}>
+<article class="card item" data-veg={String(item.veg)} style={`--i:${index}`}>
   <PhotoSlot src={item.photo} alt={item.name} mark={item.name.charAt(0)} />
   <div class="card__body">
     <div class="item__head">
