@@ -1,0 +1,42 @@
+---
+import site from '../data/site.json';
+import menu from '../data/menu.json';
+import PreviewBanner from './PreviewBanner.astro';
+const { path = '/' } = Astro.props;
+const isPreview = menu.status !== 'live';
+const links = [
+  { href: '/menu', label: 'Menu' },
+  { href: '/order', label: 'Order' },
+  { href: '/about', label: 'About' },
+  { href: '/contact', label: 'Contact' },
+];
+const current = (href) => (path === href ? 'page' : undefined);
+---
+<header class="header">
+  {isPreview && <PreviewBanner />}
+  <div class="wrap header__inner">
+    <a class="wordmark" href="/" aria-label={`${site.name} — home`}>
+      <span class="wordmark__name">NC TAJ</span>
+      <span class="wordmark__since">Since {site.established}</span>
+    </a>
+
+    <nav class="nav" aria-label="Primary">
+      {links.map((l) => <a href={l.href} aria-current={current(l.href)}>{l.label}</a>)}
+      <a class="btn btn--primary nav__cta" href="/order" data-track="order_click" data-placement="header">
+        Order Now
+      </a>
+    </nav>
+
+    <button class="burger" type="button" aria-expanded="false" aria-controls="mobile-nav" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+
+  <div class="mobile-nav" id="mobile-nav" data-open="false">
+    <div class="mobile-nav__inner">
+      <div class="wrap">
+        {links.map((l) => <a href={l.href} aria-current={current(l.href)}>{l.label}</a>)}
+      </div>
+    </div>
+  </div>
+</header>

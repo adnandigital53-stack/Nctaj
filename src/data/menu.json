@@ -1,0 +1,51 @@
+{
+  "_comment": "PLACEHOLDER DATA. Set status to 'live' only when every item, price and photo is real. While status is 'placeholder' the site shows a preview banner and hides prices.",
+  "status": "placeholder",
+  "categories": [
+    {
+      "id": "biryani",
+      "name": "Biryani",
+      "blurb": "Sealed, slow-cooked, and opened only at the table it's going to. The reason people have been coming back since 1987.",
+      "items": [
+        { "id": "chicken-dum-biryani", "name": "Chicken Dum Biryani", "description": "Long-grain rice, bone-in chicken, sealed and finished on dum.", "price": null, "veg": false, "photo": null, "available": true, "tags": ["bestseller"] },
+        { "id": "mutton-dum-biryani", "name": "Mutton Dum Biryani", "description": "Slow-cooked mutton, layered and rested.", "price": null, "veg": false, "photo": null, "available": true, "tags": [] },
+        { "id": "chicken-65-biryani", "name": "Chicken 65 Biryani", "description": "Biryani rice with our chicken 65 folded through.", "price": null, "veg": false, "photo": null, "available": true, "tags": [] },
+        { "id": "egg-biryani", "name": "Egg Biryani", "description": "Whole eggs, masala rice, fried onion.", "price": null, "veg": false, "photo": null, "available": true, "tags": [] },
+        { "id": "veg-dum-biryani", "name": "Veg Dum Biryani", "description": "Seasonal vegetables cooked on dum with whole spice.", "price": null, "veg": true, "photo": null, "available": true, "tags": [] }
+      ]
+    },
+    {
+      "id": "north-indian",
+      "name": "North Indian",
+      "blurb": "The gravies that earned their place on the menu and never left.",
+      "items": [
+        { "id": "butter-chicken", "name": "Butter Chicken", "description": "Tomato, cream, charred chicken.", "price": null, "veg": false, "photo": null, "available": true, "tags": ["bestseller"] },
+        { "id": "paneer-butter-masala", "name": "Paneer Butter Masala", "description": "Soft paneer in a slow-reduced tomato gravy.", "price": null, "veg": true, "photo": null, "available": true, "tags": [] },
+        { "id": "chicken-curry", "name": "Chicken Curry", "description": "House masala, thin gravy, made for rice.", "price": null, "veg": false, "photo": null, "available": true, "tags": [] },
+        { "id": "dal-tadka", "name": "Dal Tadka", "description": "Yellow dal, ghee tempering, burnt garlic.", "price": null, "veg": true, "photo": null, "available": true, "tags": [] },
+        { "id": "butter-naan", "name": "Butter Naan", "description": "Fresh from the tandoor.", "price": null, "veg": true, "photo": null, "available": true, "tags": [] }
+      ]
+    },
+    {
+      "id": "desserts",
+      "name": "Desserts",
+      "blurb": "Made the long way, in small batches, the way they were in 1987.",
+      "items": [
+        { "id": "double-ka-meetha", "name": "Double Ka Meetha", "description": "Fried bread soaked in saffron milk.", "price": null, "veg": true, "photo": null, "available": true, "tags": [] },
+        { "id": "gulab-jamun", "name": "Gulab Jamun", "description": "Warm, soaked through, two to a portion.", "price": null, "veg": true, "photo": null, "available": true, "tags": [] },
+        { "id": "phirni", "name": "Phirni", "description": "Ground rice, cardamom, set in clay.", "price": null, "veg": true, "photo": null, "available": true, "tags": [] }
+      ]
+    },
+    {
+      "id": "coffee-and-drinks",
+      "name": "Coffee & Drinks",
+      "blurb": "Strong, hot, and poured all day.",
+      "items": [
+        { "id": "filter-coffee", "name": "Filter Coffee", "description": "Decoction and milk, no shortcuts.", "price": null, "veg": true, "photo": null, "available": true, "tags": [] },
+        { "id": "masala-chai", "name": "Masala Chai", "description": "Boiled with ginger and cardamom.", "price": null, "veg": true, "photo": null, "available": true, "tags": [] },
+        { "id": "sulaimani", "name": "Sulaimani", "description": "Black tea, lemon, a little spice.", "price": null, "veg": true, "photo": null, "available": true, "tags": [] },
+        { "id": "sweet-lassi", "name": "Sweet Lassi", "description": "Thick curd, chilled, lightly sweet.", "price": null, "veg": true, "photo": null, "available": true, "tags": [] }
+      ]
+    }
+  ]
+}

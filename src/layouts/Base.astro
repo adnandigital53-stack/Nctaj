@@ -1,0 +1,122 @@
+---
+import '../styles/global.css';
+import site from '../data/site.json';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import OrderBar from '../components/OrderBar.astro';
+
+const { title, description = site.description, path = '/' } = Astro.props;
+const fullTitle = title ? `${title} — ${site.name}` : `${site.name} — ${site.tagline}`;
+const ga4 = site.analytics.ga4MeasurementId;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#0E0E10" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    {/* TODO (deferred): og:title / og:description / og:image for WhatsApp link
+        previews. Needs the domain and a real hero photo first. */}
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400;1,9..144,600&family=Inter:wght@400;500;600&display=swap"
+    />
+
+    {ga4 && (
+      <Fragment>
+        <script async src={`https://www.googletagmanager.com/gtag/js?id=${ga4}`}></script>
+        <script is:inline define:vars={{ ga4 }}>
+          window.dataLayer = window.dataLayer || [];
+          function gtag() { window.dataLayer.push(arguments); }
+          window.gtag = gtag;
+          gtag('js', new Date());
+          gtag('config', ga4);
+        </script>
+      </Fragment>
+    )}
+  </head>
+
+  <body>
+    <Header path={path} />
+
+    <main id="main">
+      <slot />
+    </main>
+
+    <Footer />
+    <OrderBar />
+
+    <script is:inline>
+      // --- outbound click tracking -------------------------------------
+      // Fires whether or not GA4 is configured; queues to dataLayer if not.
+      document.addEventListener('click', (e) => {
+        const el = e.target.closest('[data-track]');
+        if (!el) return;
+        const params = {};
+        if (el.dataset.platform) params.platform = el.dataset.platform;
+        if (el.dataset.placement) params.placement = el.dataset.placement;
+        if (typeof window.gtag === 'function') {
+          window.gtag('event', el.dataset.track, params);
+        } else {
+          window.dataLayer = window.dataLayer || [];
+          window.dataLayer.push({ event: el.dataset.track, ...params });
+        }
+      });
+
+      // --- header state on scroll --------------------------------------
+      const header = document.querySelector('.header');
+      const orderBar = document.querySelector('.order-bar');
+
+      const setHeaderHeight = () => {
+        if (!header) return;
+        const banner = header.querySelector('.preview-banner');
+        const bar = header.querySelector('.header__inner');
+        const h = (banner?.offsetHeight ?? 0) + (bar?.offsetHeight ?? 0);
+        document.documentElement.style.setProperty('--header-h', h + 'px');
+      };
+      setHeaderHeight();
+      window.addEventListener('resize', setHeaderHeight, { passive: true });
+      if (document.fonts?.ready) document.fonts.ready.then(setHeaderHeight);
+      const onScroll = () => {
+        const y = window.scrollY;
+        header?.classList.toggle('is-stuck', y > 24);
+        orderBar?.classList.toggle('is-visible', y > 400);
+      };
+      onScroll();
+      window.addEventListener('scroll', onScroll, { passive: true });
+
+      // --- mobile nav ---------------------------------------------------
+      const burger = document.querySelector('.burger');
+      const mobileNav = document.querySelector('.mobile-nav');
+      burger?.addEventListener('click', () => {
+        const open = burger.getAttribute('aria-expanded') === 'true';
+        burger.setAttribute('aria-expanded', String(!open));
+        mobileNav?.setAttribute('data-open', String(!open));
+      });
+
+      // --- reveal on scroll ---------------------------------------------
+      const reveals = document.querySelectorAll('.reveal');
+      if ('IntersectionObserver' in window && reveals.length) {
+        const io = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('is-in');
+              io.unobserve(entry.target);
+            }
+          });
+        }, { rootMargin: '0px 0px -8% 0px' });
+        reveals.forEach((el) => io.observe(el));
+      } else {
+        reveals.forEach((el) => el.classList.add('is-in'));
+      }
+    </script>
+  </body>
+</html>

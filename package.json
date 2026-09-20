@@ -1,0 +1,20 @@
+{
+  "name": "nc-taj",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "npm run check:contrast && npm run check:behaviour",
+    "check:contrast": "node scripts/check-contrast.mjs",
+    "check:behaviour": "node scripts/check-behaviour.mjs"
+  },
+  "dependencies": {
+    "astro": "^7.3.3"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

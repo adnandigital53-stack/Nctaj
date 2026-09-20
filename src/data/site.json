@@ -1,0 +1,30 @@
+{
+  "_comment": "Fill these in before launch. Anything left null renders as 'coming soon' rather than as a dead link — nothing broken ships by accident.",
+  "name": "NC Taj",
+  "fullName": "Noorani Canteen",
+  "established": 1987,
+  "tagline": "Biryani worth the wait. Since 1987.",
+  "description": "Noorani Canteen has been serving biryani and North Indian since 1987. Now delivering through Swiggy, Zomato and Magicpin.",
+  "contact": {
+    "phone": null,
+    "whatsapp": null,
+    "address": null,
+    "hours": null,
+    "mapsUrl": null
+  },
+  "social": {
+    "instagram": null,
+    "facebook": null
+  },
+  "order": {
+    "swiggy": null,
+    "zomato": null,
+    "magicpin": null
+  },
+  "analytics": {
+    "ga4MeasurementId": null
+  },
+  "legal": {
+    "fssaiLicence": null
+  }
+}

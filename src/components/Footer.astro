@@ -1,0 +1,53 @@
+---
+import site from '../data/site.json';
+const year = new Date().getFullYear();
+---
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer__grid">
+      <div>
+        <h4>Noorani Canteen</h4>
+        <p style="max-width: 34ch;">
+          Serving biryani and North Indian since {site.established}. Delivery only —
+          find us on Swiggy, Zomato and Magicpin.
+        </p>
+      </div>
+
+      <div>
+        <h4>Browse</h4>
+        <ul class="footer__list">
+          <li><a href="/menu">Menu</a></li>
+          <li><a href="/order" data-track="order_click" data-placement="footer">Order Now</a></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/contact">Contact</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4>Contact</h4>
+        <ul class="footer__list">
+          <li>
+            {site.contact.phone
+              ? <a href={`tel:${site.contact.phone}`} data-track="call_click" data-placement="footer">{site.contact.phone}</a>
+              : <span>Phone — coming soon</span>}
+          </li>
+          <li>
+            {site.contact.whatsapp
+              ? <a href={`https://wa.me/${site.contact.whatsapp}`} target="_blank" rel="noopener" data-track="whatsapp_click" data-placement="footer">WhatsApp</a>
+              : <span>WhatsApp — coming soon</span>}
+          </li>
+          <li>{site.contact.address ?? 'Address — coming soon'}</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer__bottom">
+      <span>© {year} {site.fullName}. All rights reserved.</span>
+      <span>
+        {site.legal.fssaiLicence
+          ? `FSSAI Lic. ${site.legal.fssaiLicence}`
+          : 'FSSAI licence no. — to be added'}
+      </span>
+    </div>
+  </div>
+</footer>

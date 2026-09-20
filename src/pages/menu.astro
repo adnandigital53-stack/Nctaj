@@ -1,0 +1,77 @@
+---
+import Base from '../layouts/Base.astro';
+import MenuItem from '../components/MenuItem.astro';
+import AggregatorStrip from '../components/AggregatorStrip.astro';
+import menu from '../data/menu.json';
+---
+<Base path="/menu" title="Menu" description="Biryani, North Indian, desserts, coffee and drinks — the full NC Taj menu.">
+  <section class="section section--tight page-head page-head--flush">
+    <div class="wrap">
+      <p class="eyebrow">The full list</p>
+      <h1>Menu</h1>
+      <p class="lede">Veg and non-veg, across four categories. Tap a filter to narrow it down.</p>
+    </div>
+  </section>
+
+  <div class="wrap">
+    <div class="filters" role="group" aria-label="Filter menu by dietary preference">
+      <button class="filter" type="button" data-filter="all" aria-pressed="true">All</button>
+      <button class="filter" type="button" data-filter="veg" aria-pressed="false">Veg</button>
+      <button class="filter" type="button" data-filter="nonveg" aria-pressed="false">Non-veg</button>
+    </div>
+
+    <p class="visually-hidden" role="status" aria-live="polite" id="filter-status"></p>
+
+    {menu.categories.map((cat) => (
+      <section class="menu-category" id={cat.id} data-category>
+        <div class="menu-category__head">
+          <p class="eyebrow">{cat.name}</p>
+          <p class="menu-category__blurb">{cat.blurb}</p>
+        </div>
+        <div class="grid grid--3">
+          {cat.items.filter((i) => i.available).map((item) => <MenuItem item={item} />)}
+        </div>
+      </section>
+    ))}
+
+    <div style="padding-block: clamp(2rem, 6vw, 4rem);">
+      <AggregatorStrip placement="menu" />
+    </div>
+  </div>
+
+  <script is:inline>
+    const buttons = document.querySelectorAll('.filter');
+    const items = document.querySelectorAll('.item');
+    const categories = document.querySelectorAll('[data-category]');
+    const status = document.getElementById('filter-status');
+
+    const apply = (mode) => {
+      items.forEach((item) => {
+        const isVeg = item.dataset.veg === 'true';
+        const show = mode === 'all' || (mode === 'veg' && isVeg) || (mode === 'nonveg' && !isVeg);
+        item.hidden = !show;
+      });
+
+      // Hide a category heading entirely when the filter empties it.
+      let shown = 0;
+      categories.forEach((cat) => {
+        const visible = cat.querySelectorAll('.item:not([hidden])').length;
+        cat.hidden = visible === 0;
+        shown += visible;
+      });
+
+      if (status) status.textContent = `${shown} items shown`;
+    };
+
+    buttons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        buttons.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+        const mode = btn.dataset.filter;
+        apply(mode);
+        if (typeof window.gtag === 'function') {
+          window.gtag('event', 'menu_filter', { filter: mode });
+        }
+      });
+    });
+  </script>
+</Base>

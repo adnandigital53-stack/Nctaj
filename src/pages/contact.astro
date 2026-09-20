@@ -1,0 +1,51 @@
+---
+import Base from '../layouts/Base.astro';
+import site from '../data/site.json';
+const c = site.contact;
+---
+<Base path="/contact" title="Contact" description="Get in touch with NC Taj — phone, WhatsApp, hours and location.">
+  <section class="section page-head">
+    <div class="wrap wrap--narrow">
+      <p class="eyebrow">Get in touch</p>
+      <h1>Contact</h1>
+      <p class="lede" style="margin-bottom: 2rem;">
+        For orders, use the apps. For anything else — catering, large orders, or a
+        problem with a delivery — reach us directly.
+      </p>
+
+      <div>
+        <div class="detail">
+          <p class="detail__label">Phone</p>
+          {c.phone
+            ? <p class="detail__value"><a href={`tel:${c.phone}`} data-track="call_click" data-placement="contact">{c.phone}</a></p>
+            : <p class="detail__value detail__value--pending">To be added</p>}
+        </div>
+
+        <div class="detail">
+          <p class="detail__label">WhatsApp</p>
+          {c.whatsapp
+            ? <p class="detail__value"><a href={`https://wa.me/${c.whatsapp}`} target="_blank" rel="noopener" data-track="whatsapp_click" data-placement="contact">Message us</a></p>
+            : <p class="detail__value detail__value--pending">To be added</p>}
+        </div>
+
+        <div class="detail">
+          <p class="detail__label">Kitchen</p>
+          {c.address
+            ? <p class="detail__value">{c.address}</p>
+            : <p class="detail__value detail__value--pending">To be added</p>}
+        </div>
+
+        <div class="detail">
+          <p class="detail__label">Hours</p>
+          {c.hours
+            ? <p class="detail__value">{c.hours}</p>
+            : <p class="detail__value detail__value--pending">To be added</p>}
+        </div>
+      </div>
+
+      <div style="margin-top: 3rem;">
+        <a class="btn btn--primary" href="/order" data-track="order_click" data-placement="contact">Order Now</a>
+      </div>
+    </div>
+  </section>
+</Base>
