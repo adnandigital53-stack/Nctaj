@@ -1,5 +1,6 @@
 {
   "_comment": "Anything left null renders as 'coming soon' rather than as a dead link.",
+  "siteUrl": null,
   "name": "NC Taj",
   "fullName": "Noorani Canteen",
   "established": 1987,
@@ -7,12 +8,18 @@
   "description": "Noorani Canteen has been serving biryani and North Indian since 1987. Delivering across Mysore through Swiggy, Zomato and Magicpin.",
   "contact": {
     "phone": [
-      { "display": "+91 98864 13744", "dial": "+919886413744" },
-      { "display": "+91 89047 46216", "dial": "+918904746216" }
+      {
+        "display": "+91 98864 13744",
+        "dial": "+919886413744"
+      },
+      {
+        "display": "+91 89047 46216",
+        "dial": "+918904746216"
+      }
     ],
     "whatsapp": "918904746216",
     "address": "NC Taj, L-1 Irwin Road, Lashkar Mohalla, Mysore",
-    "hours": "11:00 AM – 11:00 PM",
+    "hours": "11:00 AM \u2013 11:00 PM",
     "mapsUrl": null
   },
   "social": {

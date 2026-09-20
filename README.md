@@ -100,8 +100,24 @@ This build is a **preview**. The orange banner is rendered automatically while
 - [ ] GA4 measurement ID in `site.json` (until then, events queue to `dataLayer`)
 - [ ] `"status": "live"`
 
-Deferred, in order: OG/WhatsApp previews → FSSAI number → legal pages → a
-self-serve menu editor → domain → cart and checkout. See the plan.
+Deferred, in order: legal pages → a self-serve menu editor → domain → cart
+and checkout. See the plan. (Link previews and the FSSAI number are done.)
+
+## Link previews
+
+`og.jpg` (1200×630, 82KB) is a typographic card rendered from the design
+system — no food photography needed, so it works today. Regenerate it from
+`scripts/og-template` once real photos exist.
+
+Title, description and `twitter:card` ship on every page already. `og:url`,
+`og:image` and `<link rel="canonical">` must be absolute URLs, so they render
+only once **`siteUrl`** is set in `site.json` (e.g. `"https://nctaj.in"`).
+Set it and every page gets a correct per-page canonical automatically.
+
+Previews cannot be tested until the site is deployed somewhere public —
+WhatsApp has to fetch the page to read the tags. Once live, validate at
+`developers.facebook.com/tools/debug/`, which also clears the cache if you
+change the image later.
 
 ## Photography
 
