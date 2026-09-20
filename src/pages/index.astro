@@ -51,7 +51,7 @@ import site from '../data/site.json';
       <p class="eyebrow">What we cook</p>
       <h2 style="margin-bottom: 2.5rem;">Four things, done properly.</h2>
       <div class="grid grid--2">
-        {menu.categories.map((cat) => (
+        {menu.categories.filter((cat) => cat.items.some((i) => i.available)).map((cat) => (
           <a class="card reveal" href={`/menu#${cat.id}`} style="text-decoration: none; color: inherit;">
             <div class="card__body">
               <h3 class="card__title">{cat.name}</h3>

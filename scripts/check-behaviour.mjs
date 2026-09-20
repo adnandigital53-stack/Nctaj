@@ -44,10 +44,34 @@ check(
     (await p.locator('.item:not([hidden])[data-veg="true"]').count()) === 0,
 );
 
+// an all-non-veg category must be collapsed while the non-veg filter is off...
+const allNonVegCats = menu.categories.filter((c) => c.items.every((i) => !i.veg)).map((c) => c.id);
+// (currently showing non-veg, so these must be VISIBLE)
+for (const id of allNonVegCats) {
+  check(`category "${id}" visible under non-veg`, (await p.locator(`#${id}`).evaluate((el) => el.hidden)) === false);
+}
+
+// ...and collapse under the veg filter
+await p.getByRole('button', { name: 'Veg', exact: true }).click();
+await p.waitForTimeout(200);
+for (const id of allNonVegCats) {
+  check(`category "${id}" collapses under veg`, (await p.locator(`#${id}`).evaluate((el) => el.hidden)) === true);
+}
+
 // any all-veg category must collapse under the non-veg filter
 const allVegCats = menu.categories.filter((c) => c.items.every((i) => i.veg)).map((c) => c.id);
-for (const id of allVegCats) {
-  check(`category "${id}" collapses when empty`, (await p.locator(`#${id}`).evaluate((el) => el.hidden)) === true);
+if (allVegCats.length) {
+  await p.getByRole('button', { name: 'Non-veg', exact: true }).click();
+  await p.waitForTimeout(200);
+  for (const id of allVegCats) {
+    check(`category "${id}" collapses under non-veg`, (await p.locator(`#${id}`).evaluate((el) => el.hidden)) === true);
+  }
+}
+
+// a category the menu never renders must not be queried at all
+const emptyCats = menu.categories.filter((c) => !c.items.some((i) => i.available)).map((c) => c.id);
+for (const id of emptyCats) {
+  check(`empty category "${id}" is not rendered`, (await p.locator(`#${id}`).count()) === 0);
 }
 
 await p.getByRole('button', { name: 'All', exact: true }).click();

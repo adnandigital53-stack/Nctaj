@@ -7,8 +7,9 @@
 ## Business Overview
 - **Restaurant:** NC Taj — *NC = Noorani Canteen*
 - **Established:** 1987
-- **Cuisine:** Biryani, North Indian, Desserts, Coffee & Drinks — veg & non-veg
-  (partial list, more to be added)
+- **Cuisine:** Biryani, Starters, North Indian, Rice & Breads — veg & non-veg.
+  Taken from the restaurant's own menu poster; desserts and drinks are not on it
+  and may still need adding.
 - **Model:** Delivery-only (no dine-in) — currently live on Swiggy, Zomato, Magicpin
 - **Location / hours / contact number:** *TBD — required before launch*
 
@@ -28,7 +29,7 @@ labels for the order action. These become literal UI text, so they are fixed her
 
 | Thing | Canonical string |
 |---|---|
-| Menu categories | **Biryani** · **North Indian** · **Desserts** · **Coffee & Drinks** |
+| Menu categories | **Biryani** · **Starters** · **North Indian** · **Rice & Breads** |
 | Nav item / page title | **Order** |
 | Every call-to-action button | **Order Now** |
 | Aggregator strip under the hero | **Order on Swiggy · Zomato · Magicpin** |
