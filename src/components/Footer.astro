@@ -26,17 +26,18 @@ const year = new Date().getFullYear();
       <div>
         <h4>Contact</h4>
         <ul class="footer__list">
-          <li>
-            {site.contact.phone
-              ? <a href={`tel:${site.contact.phone}`} data-track="call_click" data-placement="footer">{site.contact.phone}</a>
-              : <span>Phone — coming soon</span>}
-          </li>
+          {site.contact.phone?.length
+            ? site.contact.phone.map((ph) => (
+                <li><a href={`tel:${ph.dial}`} data-track="call_click" data-placement="footer">{ph.display}</a></li>
+              ))
+            : <li><span>Phone — coming soon</span></li>}
           <li>
             {site.contact.whatsapp
               ? <a href={`https://wa.me/${site.contact.whatsapp}`} target="_blank" rel="noopener" data-track="whatsapp_click" data-placement="footer">WhatsApp</a>
               : <span>WhatsApp — coming soon</span>}
           </li>
           <li>{site.contact.address ?? 'Address — coming soon'}</li>
+          <li>{site.contact.hours ?? 'Hours — coming soon'}</li>
         </ul>
       </div>
     </div>

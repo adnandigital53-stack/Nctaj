@@ -16,8 +16,12 @@ const c = site.contact;
       <div>
         <div class="detail">
           <p class="detail__label">Phone</p>
-          {c.phone
-            ? <p class="detail__value"><a href={`tel:${c.phone}`} data-track="call_click" data-placement="contact">{c.phone}</a></p>
+          {c.phone?.length
+            ? c.phone.map((ph) => (
+                <p class="detail__value">
+                  <a href={`tel:${ph.dial}`} data-track="call_click" data-placement="contact">{ph.display}</a>
+                </p>
+              ))
             : <p class="detail__value detail__value--pending">To be added</p>}
         </div>
 

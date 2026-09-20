@@ -1,15 +1,18 @@
 {
-  "_comment": "Fill these in before launch. Anything left null renders as 'coming soon' rather than as a dead link — nothing broken ships by accident.",
+  "_comment": "Anything left null renders as 'coming soon' rather than as a dead link.",
   "name": "NC Taj",
   "fullName": "Noorani Canteen",
   "established": 1987,
   "tagline": "Biryani worth the wait. Since 1987.",
-  "description": "Noorani Canteen has been serving biryani and North Indian since 1987. Now delivering through Swiggy, Zomato and Magicpin.",
+  "description": "Noorani Canteen has been serving biryani and North Indian since 1987. Delivering across Mysore through Swiggy, Zomato and Magicpin.",
   "contact": {
-    "phone": null,
-    "whatsapp": null,
-    "address": null,
-    "hours": null,
+    "phone": [
+      { "display": "+91 98864 13744", "dial": "+919886413744" },
+      { "display": "+91 89047 46216", "dial": "+918904746216" }
+    ],
+    "whatsapp": "918904746216",
+    "address": "NC Taj, L-1 Irwin Road, Lashkar Mohalla, Mysore",
+    "hours": "11:00 AM – 11:00 PM",
     "mapsUrl": null
   },
   "social": {
@@ -17,14 +20,14 @@
     "facebook": null
   },
   "order": {
-    "swiggy": null,
-    "zomato": null,
-    "magicpin": null
+    "swiggy": "https://www.swiggy.com/menu/1129065",
+    "zomato": "https://zomato.onelink.me/xqzv/bltiqpd7",
+    "magicpin": "https://magicpin.in/walletRecharge?merchantId=54658374"
   },
   "analytics": {
     "ga4MeasurementId": null
   },
   "legal": {
-    "fssaiLicence": null
+    "fssaiLicence": "21225198000303"
   }
 }
