@@ -188,10 +188,25 @@ most likely way this build fails in the real world.
 - **Menu updates:** handled through Claude for now — prices, new items and the
   `available` flag are edits to `menu.json`, not code changes. A manual
   self-serve editor is on the deferred list.
-- **Hosting:** Vercel or Netlify, static. Until a domain is bought the site runs
-  on the platform subdomain — worth knowing that link previews and anything
-  printed or posted will need redoing when the domain moves, so buy it before
-  anything goes on packaging or Instagram.
+- **Hosting:** **Cloudflare Pages**, static. Unlimited bandwidth on the free
+  tier (this site will be mostly photography), the densest edge presence in
+  India, no non-commercial licence restriction, and it deploys from GitHub so
+  a push updates the live site with no terminal involved. Netlify is an equally
+  easy second choice; Vercel's free Hobby tier is non-commercial only, and
+  Firebase Hosting meters free transfer at ~360MB/day and deploys via CLI.
+  Until a domain is bought the site runs on the platform subdomain — link
+  previews and anything printed or posted will need redoing when the domain
+  moves, so buy it before anything goes on packaging or Instagram.
+
+- **Hosting does not lock in the backend.** A static frontend can call an API on
+  any host, so the add-on phase is not constrained by this choice. If it stays
+  on Cloudflare the upgrade path is in the same account and the same deploy
+  pipeline: **Workers** for the cart/checkout API and the payment webhook,
+  **D1** for order storage, **R2** for images if they outgrow the repo — all
+  with usable free tiers. Firebase's equivalent (Cloud Functions) requires
+  leaving the free plan. Supabase paired with any host is also viable. None of
+  this needs deciding now, and nothing about it is harder for having started on
+  Pages.
 
 ## Competitor Notes
 *From nandhanarestaurants.com and Hotel Pai Vista's restaurant page*
