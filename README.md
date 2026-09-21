@@ -108,6 +108,32 @@ Analytics is not launch-blocking: with no `ga4MeasurementId`, click events
 still fire and queue to `dataLayer`, so adding the ID later starts collection
 without any other change.
 
+## Hosting
+
+Static output, so any static host works. Recommended: **Cloudflare Pages**
+(unlimited bandwidth on the free tier, and the densest edge presence in India).
+
+Connect the GitHub repo and use:
+
+| Setting | Value |
+|---|---|
+| Framework preset | Astro |
+| Build command | `npm run build` |
+| Output directory | `dist` |
+| Node version | from `.nvmrc` (22) |
+
+Every push to the branch redeploys automatically.
+
+After the first deploy, set `siteUrl` in `site.json` to the live URL — that
+switches on `og:url`, `og:image` and the canonical tags, so WhatsApp link
+previews start working. It can be the free subdomain
+(`nctaj.pages.dev`); swap it for the real domain when there is one.
+
+Alternatives: **Netlify** (equally simple, 100GB/month free) and **GitHub
+Pages** (free forever, needs a build workflow). **Vercel** works well
+technically, but its free Hobby tier is licensed for non-commercial use only,
+which a restaurant site is not.
+
 ## Link previews
 
 `og.jpg` (1200×630, 82KB) is a typographic card rendered from the design
