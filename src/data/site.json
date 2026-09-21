@@ -1,6 +1,6 @@
 {
   "_comment": "Anything left null renders as 'coming soon' rather than as a dead link.",
-  "siteUrl": null,
+  "siteUrl": "https://nc-taj.adnandigital53.workers.dev",
   "name": "NC Taj",
   "fullName": "Noorani Canteen",
   "established": 1987,
@@ -18,9 +18,9 @@
       }
     ],
     "whatsapp": "918904746216",
-    "address": "NC Taj, L-1 Irwin Road, Lashkar Mohalla, Mysore – 570001",
+    "address": "NC Taj, L-1 Irwin Road, Lashkar Mohalla, Mysore \u2013 570001",
     "hours": {
-      "display": "11:00 AM – 11:00 PM",
+      "display": "11:00 AM \u2013 11:00 PM",
       "opens": "11:00",
       "closes": "23:00",
       "days": "daily",
