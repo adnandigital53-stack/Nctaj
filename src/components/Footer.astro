@@ -1,5 +1,6 @@
 ---
 import site from '../data/site.json';
+import OpenStatus from './OpenStatus.astro';
 const year = new Date().getFullYear();
 ---
 <footer class="footer">
@@ -37,7 +38,8 @@ const year = new Date().getFullYear();
               : <span>WhatsApp — coming soon</span>}
           </li>
           <li>{site.contact.address ?? 'Address — coming soon'}</li>
-          <li>{site.contact.hours ?? 'Hours — coming soon'}</li>
+          <li>{site.contact.hours?.display ?? 'Hours — coming soon'}</li>
+          <li><OpenStatus placement="footer" /></li>
         </ul>
       </div>
     </div>

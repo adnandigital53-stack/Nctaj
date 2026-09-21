@@ -18,6 +18,12 @@ import menu from '../data/menu.json';
       <button class="filter" type="button" data-filter="all" aria-pressed="true">All</button>
       <button class="filter" type="button" data-filter="veg" aria-pressed="false">Veg</button>
       <button class="filter" type="button" data-filter="nonveg" aria-pressed="false">Non-veg</button>
+
+      <nav class="jump" aria-label="Jump to category">
+        {menu.categories
+          .filter((cat) => cat.items.some((i) => i.available))
+          .map((cat) => <a href={`#${cat.id}`} data-jump={cat.id}>{cat.name}</a>)}
+      </nav>
     </div>
 
     <p class="visually-hidden" role="status" aria-live="polite" id="filter-status"></p>
@@ -78,12 +84,37 @@ import menu from '../data/menu.json';
           btn.addEventListener('click', () => {
             buttons.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
             const mode = btn.dataset.filter;
-            apply(mode);
+
+            // Each item carries a view-transition-name, so the cards that stay
+            // slide into their new positions rather than jumping.
+            const run = () => apply(mode);
+            if (document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+              document.startViewTransition(run);
+            } else {
+              run();
+            }
+
             if (typeof window.gtag === 'function') {
               window.gtag('event', 'menu_filter', { filter: mode });
             }
           });
         });
+
+        // --- scroll-spy for the jump chips --------------------------
+        const chips = document.querySelectorAll('[data-jump]');
+        if (chips.length && 'IntersectionObserver' in window) {
+          window.__nctajSpy?.disconnect();
+          const spy = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+              if (!entry.isIntersecting) return;
+              chips.forEach((c) =>
+                c.setAttribute('aria-current', String(c.dataset.jump === entry.target.id)),
+              );
+            });
+          }, { rootMargin: '-45% 0px -50% 0px' });
+          categories.forEach((cat) => spy.observe(cat));
+          window.__nctajSpy = spy;
+        }
       };
 
       document.addEventListener('astro:page-load', initFilters);

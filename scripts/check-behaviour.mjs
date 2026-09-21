@@ -93,6 +93,61 @@ check(
   event?.event === 'order_click' && event?.placement === 'hero',
   JSON.stringify(event),
 );
+// ---- live open/closed status ----
+// Pinned clock, because the whole point is that it reads the kitchen's
+// timezone (Asia/Kolkata, UTC+5:30) and not the visitor's.
+{
+  const cases = [
+    { utc: '2026-06-15T06:30:00Z', ist: '12:00', cls: 'is-open',   text: /open now/i },
+    { utc: '2026-06-15T21:30:00Z', ist: '03:00', cls: 'is-closed', text: /closed/i },
+    { utc: '2026-06-15T17:00:00Z', ist: '22:30', cls: 'is-soon',   text: /closing in 30 min/i },
+  ];
+
+  for (const c of cases) {
+    const tzCtx = await b.newContext({ viewport: { width: 1440, height: 900 }, timezoneId: 'America/New_York' });
+    await tzCtx.clock.setFixedTime(new Date(c.utc));
+    const tp = await tzCtx.newPage();
+    await tp.goto(`${BASE}/`, { waitUntil: 'load' });
+    await tp.waitForTimeout(400);
+
+    const el = tp.locator('.status--hero');
+    const visible = await el.isVisible();
+    const cls = await el.getAttribute('class');
+    const txt = (await el.locator('.status__text').textContent()) ?? '';
+
+    check(
+      `status at ${c.ist} IST → ${c.cls}`,
+      visible && cls.includes(c.cls) && c.text.test(txt),
+      `visible=${visible} class="${cls}" text="${txt}"`,
+    );
+    await tzCtx.close();
+  }
+}
+
+// ---- menu jump chips ----
+{
+  const jctx = await b.newContext({ viewport: { width: 1440, height: 900 } });
+  const jp = await jctx.newPage();
+  await jp.goto(`${BASE}/menu`, { waitUntil: 'load' });
+  await jp.waitForTimeout(400);
+
+  const live = menu.categories.filter((c) => c.items.some((i) => i.available));
+  check('a jump chip per rendered category', (await jp.locator('[data-jump]').count()) === live.length);
+
+  // scroll-spy marks the category you're looking at
+  const target = live[live.length - 1].id;
+  await jp.locator(`#${target}`).scrollIntoViewIfNeeded();
+  await jp.evaluate(() => window.scrollBy(0, 120));
+  await jp.waitForTimeout(700);
+  check(
+    'scroll-spy marks the visible category',
+    (await jp.locator(`[data-jump="${target}"]`).getAttribute('aria-current')) === 'true',
+  );
+
+  check('scroll progress bar present', (await jp.locator('.progress').count()) === 1);
+  await jctx.close();
+}
+
 // ---- client-side navigation (ClientRouter) ----
 // Soft navigation doesn't re-run inline scripts the way a full load does,
 // so the filter and the persisted header are re-checked after a link click.

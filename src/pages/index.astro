@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import AggregatorStrip from '../components/AggregatorStrip.astro';
+import OpenStatus from '../components/OpenStatus.astro';
 import menu from '../data/menu.json';
 import site from '../data/site.json';
 ---
@@ -8,6 +9,7 @@ import site from '../data/site.json';
   <section class="hero">
     <div class="wrap hero__inner">
       <p class="eyebrow">Since {site.established} · Noorani Canteen</p>
+      <OpenStatus placement="hero" />
       <h1>Biryani worth <em>the wait</em>.</h1>
       <p class="hero__lede">
         Sealed, slow-cooked and opened only when it reaches you. The same kitchen

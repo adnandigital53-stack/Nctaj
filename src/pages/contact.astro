@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import site from '../data/site.json';
+import OpenStatus from '../components/OpenStatus.astro';
 const c = site.contact;
 ---
 <Base path="/contact" title="Contact" description="Get in touch with NC Taj — phone, WhatsApp, hours and location.">
@@ -42,7 +43,10 @@ const c = site.contact;
         <div class="detail">
           <p class="detail__label">Hours</p>
           {c.hours
-            ? <p class="detail__value">{c.hours}</p>
+            ? <Fragment>
+                <p class="detail__value">{c.hours.display}</p>
+                <OpenStatus placement="contact" />
+              </Fragment>
             : <p class="detail__value detail__value--pending">To be added</p>}
         </div>
       </div>

@@ -75,6 +75,7 @@ const ogImage = base ? `${base}/og.jpg` : null;
   </head>
 
   <body>
+    <div class="progress" transition:persist></div>
     <Header path={path} transition:persist />
 
     <main id="main">
@@ -105,11 +106,87 @@ const ogImage = base ? `${base}/og.jpg` : null;
             }
           });
 
+          // Only needed where scroll-driven CSS animations aren't available;
+          // elsewhere .progress animates on its own timeline.
+          const needsProgressJS = !CSS.supports('animation-timeline', 'scroll()');
+
           const onScroll = () => {
             const y = window.scrollY;
             document.querySelector('.header')?.classList.toggle('is-stuck', y > 24);
             document.querySelector('.order-bar')?.classList.toggle('is-visible', y > 400);
+
+            if (needsProgressJS) {
+              const bar = document.querySelector('.progress');
+              if (bar) {
+                const max = document.documentElement.scrollHeight - window.innerHeight;
+                bar.style.transform = `scaleX(${max > 0 ? Math.min(y / max, 1) : 0})`;
+              }
+            }
           };
+
+          // Cursor spotlight: pointer position handed to CSS as percentages.
+          if (window.matchMedia('(hover: hover)').matches) {
+            document.addEventListener('pointermove', (e) => {
+              const card = e.target.closest?.('.card');
+              if (!card) return;
+              const r = card.getBoundingClientRect();
+              card.style.setProperty('--mx', `${((e.clientX - r.left) / r.width) * 100}%`);
+              card.style.setProperty('--my', `${((e.clientY - r.top) / r.height) * 100}%`);
+            }, { passive: true });
+          }
+
+          // --- live open / closed -------------------------------------
+          const fmt12 = (hhmm) => {
+            const [h, m] = hhmm.split(':').map(Number);
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            const hr = h % 12 === 0 ? 12 : h % 12;
+            return m ? `${hr}:${String(m).padStart(2, '0')} ${ampm}` : `${hr} ${ampm}`;
+          };
+
+          const updateStatus = () => {
+            document.querySelectorAll('[data-open-status]').forEach((el) => {
+              const tz = el.dataset.tz || 'Asia/Kolkata';
+              let nowMins;
+              try {
+                // The kitchen's clock, not the visitor's.
+                const parts = new Intl.DateTimeFormat('en-GB', {
+                  timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false,
+                }).formatToParts(new Date());
+                const hh = Number(parts.find((x) => x.type === 'hour').value);
+                const mm = Number(parts.find((x) => x.type === 'minute').value);
+                nowMins = hh * 60 + mm;
+              } catch {
+                return; // leave it hidden rather than show a wrong state
+              }
+
+              const toMins = (v) => { const [h, m] = v.split(':').map(Number); return h * 60 + m; };
+              const open = toMins(el.dataset.opens);
+              const close = toMins(el.dataset.closes);
+              // Handles a closing time that runs past midnight.
+              const isOpen = close > open
+                ? (nowMins >= open && nowMins < close)
+                : (nowMins >= open || nowMins < close);
+
+              const untilClose = isOpen ? ((close - nowMins) + 1440) % 1440 : null;
+              const soon = isOpen && untilClose !== null && untilClose <= 45;
+
+              el.classList.toggle('is-open', isOpen && !soon);
+              el.classList.toggle('is-soon', soon);
+              el.classList.toggle('is-closed', !isOpen);
+
+              const text = el.querySelector('.status__text');
+              if (text) {
+                text.textContent = soon
+                  ? `Closing in ${untilClose} min`
+                  : isOpen
+                    ? 'Open now'
+                    : `Closed · opens ${fmt12(el.dataset.opens)}`;
+              }
+              el.hidden = false;
+            });
+          };
+          window.__nctaj.updateStatus = updateStatus;
+          setInterval(updateStatus, 60000);
           window.addEventListener('scroll', onScroll, { passive: true });
           window.addEventListener('resize', () => window.__nctaj.measure?.(), { passive: true });
           window.__nctaj.onScroll = onScroll;
@@ -133,6 +210,7 @@ const ogImage = base ? `${base}/og.jpg` : null;
           if (document.fonts?.ready) document.fonts.ready.then(measure);
 
           window.__nctaj.onScroll();
+          window.__nctaj.updateStatus();
 
           // The header persists across navigations, so only bind once.
           const burger = document.querySelector('.burger');
