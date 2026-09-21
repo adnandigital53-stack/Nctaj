@@ -3,7 +3,7 @@
   // serves ./dist from the edge. When the cart arrives, add a `main` script
   // here and the same Worker serves the site AND the API on one domain.
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "nctaj",
+  "name": "nctaj-mysore",
   "compatibility_date": "2026-09-21",
   "assets": {
     "directory": "./dist",
