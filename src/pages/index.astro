@@ -1,0 +1,81 @@
+---
+import Base from '../layouts/Base.astro';
+import AggregatorStrip from '../components/AggregatorStrip.astro';
+import OpenStatus from '../components/OpenStatus.astro';
+import menu from '../data/menu.json';
+import site from '../data/site.json';
+---
+<Base path="/">
+  <section class="hero">
+    <div class="wrap hero__inner">
+      <p class="eyebrow">Since {site.established} · Noorani Canteen</p>
+      <OpenStatus placement="hero" />
+      <h1>Biryani worth <em>the wait</em>.</h1>
+      <p class="hero__lede">
+        Sealed, slow-cooked and opened only when it reaches you. The same kitchen
+        since 1987, now delivered to your door.
+      </p>
+      <div class="hero__actions">
+        <a class="btn btn--primary" href="/order" data-track="order_click" data-placement="hero">Order Now</a>
+        <a class="btn btn--ghost" href="/menu">See the menu</a>
+      </div>
+      <AggregatorStrip placement="hero" />
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="grid grid--2" style="align-items: center; gap: clamp(2rem, 6vw, 4rem);">
+        <div class="reveal">
+          <p class="eyebrow">The short version</p>
+          <h2>One kitchen. One recipe. Since 1987.</h2>
+          <p class="lede">
+            Noorani Canteen opened in 1987 and has been cooking the same way ever
+            since — bone-in, sealed on dum, no shortcuts. We don't do dine-in any
+            more. We just cook, and we deliver.
+          </p>
+          <a class="btn btn--ghost" href="/about">Read the story</a>
+        </div>
+        <div class="reveal">
+          <div class="card">
+            <div class="photo" style="aspect-ratio: 4 / 3;">
+              <span class="photo__mark" aria-hidden="true">NC</span>
+              <span class="photo__note">Photo pending</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top: 0;">
+    <div class="wrap">
+      <p class="eyebrow">What we cook</p>
+      <h2 style="margin-bottom: 2.5rem;">Four things, done properly.</h2>
+      <div class="grid grid--2">
+        {menu.categories.filter((cat) => cat.items.some((i) => i.available)).map((cat, i) => (
+          <a class="card reveal" href={`/menu#${cat.id}`} style={`--i:${i}; text-decoration:none; color:inherit;`}>
+            <div class="card__body">
+              <h3 class="card__title">{cat.name}</h3>
+              <p class="card__text">{cat.blurb}</p>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top: 0;">
+    <div class="wrap">
+      <hr class="rule" />
+      <div style="text-align: center; padding-top: clamp(3rem, 8vw, 5rem);">
+        <p class="eyebrow eyebrow--center">Hungry?</p>
+        <h2>We're on all three.</h2>
+        <p class="lede" style="margin-inline: auto;">
+          Pick whichever app you already have open.
+        </p>
+        <a class="btn btn--primary" href="/order" data-track="order_click" data-placement="home_footer_cta">Order Now</a>
+      </div>
+    </div>
+  </section>
+</Base>

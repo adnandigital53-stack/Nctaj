@@ -7,8 +7,9 @@
 ## Business Overview
 - **Restaurant:** NC Taj — *NC = Noorani Canteen*
 - **Established:** 1987
-- **Cuisine:** Biryani, North Indian, Desserts, Coffee & Drinks — veg & non-veg
-  (partial list, more to be added)
+- **Cuisine:** Biryani, Starters, North Indian, Rice & Breads — veg & non-veg.
+  Taken from the restaurant's own menu poster; desserts and drinks are not on it
+  and may still need adding.
 - **Model:** Delivery-only (no dine-in) — currently live on Swiggy, Zomato, Magicpin
 - **Location / hours / contact number:** *TBD — required before launch*
 
@@ -28,7 +29,7 @@ labels for the order action. These become literal UI text, so they are fixed her
 
 | Thing | Canonical string |
 |---|---|
-| Menu categories | **Biryani** · **North Indian** · **Desserts** · **Coffee & Drinks** |
+| Menu categories | **Biryani** · **Starters** · **North Indian** · **Rice & Breads** |
 | Nav item / page title | **Order** |
 | Every call-to-action button | **Order Now** |
 | Aggregator strip under the hero | **Order on Swiggy · Zomato · Magicpin** |
@@ -187,10 +188,25 @@ most likely way this build fails in the real world.
 - **Menu updates:** handled through Claude for now — prices, new items and the
   `available` flag are edits to `menu.json`, not code changes. A manual
   self-serve editor is on the deferred list.
-- **Hosting:** Vercel or Netlify, static. Until a domain is bought the site runs
-  on the platform subdomain — worth knowing that link previews and anything
-  printed or posted will need redoing when the domain moves, so buy it before
-  anything goes on packaging or Instagram.
+- **Hosting:** **Cloudflare Pages**, static. Unlimited bandwidth on the free
+  tier (this site will be mostly photography), the densest edge presence in
+  India, no non-commercial licence restriction, and it deploys from GitHub so
+  a push updates the live site with no terminal involved. Netlify is an equally
+  easy second choice; Vercel's free Hobby tier is non-commercial only, and
+  Firebase Hosting meters free transfer at ~360MB/day and deploys via CLI.
+  Until a domain is bought the site runs on the platform subdomain — link
+  previews and anything printed or posted will need redoing when the domain
+  moves, so buy it before anything goes on packaging or Instagram.
+
+- **Hosting does not lock in the backend.** A static frontend can call an API on
+  any host, so the add-on phase is not constrained by this choice. If it stays
+  on Cloudflare the upgrade path is in the same account and the same deploy
+  pipeline: **Workers** for the cart/checkout API and the payment webhook,
+  **D1** for order storage, **R2** for images if they outgrow the repo — all
+  with usable free tiers. Firebase's equivalent (Cloud Functions) requires
+  leaving the free plan. Supabase paired with any host is also viable. None of
+  this needs deciding now, and nothing about it is harder for having started on
+  Pages.
 
 ## Competitor Notes
 *From nandhanarestaurants.com and Hotel Pai Vista's restaurant page*
@@ -222,19 +238,22 @@ above the fold, not buried on About.
 |---|---|---|---|---|
 | 1 | Exact menu + prices | TBD | TBD | **Yes — blocks the build** |
 | 2 | Food photography (see shot list) | TBD | TBD | **Yes — blocks the build** |
-| 3 | Location, hours, phone/WhatsApp number | TBD | TBD | **Yes — blocks launch** |
-| 4 | Swiggy/Zomato/Magicpin profile links | TBD | TBD | **Yes — blocks launch** |
-| 5 | Copy: tagline, About story, category blurbs | TBD | TBD | Yes |
-| 6 | Logo — wordmark now, or launch on type only | TBD | TBD | No |
-| 7 | GA4 property created | TBD | TBD | No |
-| 8 | Google Business Profile | TBD | TBD | No |
+| 3 | Copy: tagline, About story, category blurbs | TBD | TBD | **Yes** — currently placeholder prose |
+| 4 | Logo — wordmark now, or launch on type only | TBD | TBD | No |
+| 5 | Google Business Profile | TBD | TBD | No |
+
+**Done:** location, hours and both phone numbers · WhatsApp · Swiggy / Zomato /
+Magicpin listing links · FSSAI licence number · link previews (image built;
+activates when `siteUrl` is set).
 
 ## Deferred — after the main site is done, in this order
 
-1. **OG / WhatsApp link previews** — `og:image`, `og:title`, `og:description`.
-   Without them a shared link renders as a bare grey URL in WhatsApp.
-2. **FSSAI licence number** on the site — to be confirmed with whoever holds the
-   licence; plan for a footer line.
+1. **GA4 measurement ID.** The property has to be created in the owner's Google
+   account; the site then needs only the `G-XXXXXXXXXX` string. Until it lands,
+   click events still fire and queue to `dataLayer` — nothing is lost from the
+   code side, but nothing is being recorded either.
+2. **Google Maps link, Instagram and Facebook** — small additions to
+   `site.json`; the Contact page and footer pick them up automatically.
 3. **Legal pages** — Terms, Privacy Policy, Refund & Cancellation, Shipping &
    Delivery. Not just good practice: Razorpay and Cashfree will not activate an
    account without them live on the site.

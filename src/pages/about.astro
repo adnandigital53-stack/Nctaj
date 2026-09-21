@@ -1,0 +1,40 @@
+---
+import Base from '../layouts/Base.astro';
+import site from '../data/site.json';
+---
+<Base path="/about" title="About" description="Noorani Canteen has been cooking biryani since 1987. NC Taj is how it reaches you now.">
+  <section class="section page-head">
+    <div class="wrap wrap--narrow">
+      <p class="eyebrow">Since {site.established}</p>
+      <h1>Noorani Canteen.</h1>
+      <p class="lede">
+        NC Taj is short for Noorani Canteen — the name above the door since 1987.
+      </p>
+
+      <div class="card" style="margin-block: 3rem;">
+        <div class="photo" style="aspect-ratio: 3 / 2;">
+          <span class="photo__mark" aria-hidden="true">1987</span>
+          <span class="photo__note">Photo pending</span>
+        </div>
+      </div>
+
+      <p>
+        We started as a canteen, and in most of the ways that matter we still are
+        one. The same biryani, cooked the same way — bone-in, layered, sealed and
+        left on dum until it's ready rather than until someone's in a hurry.
+      </p>
+      <p>
+        What changed is how it reaches you. There's no dining room now. Everything
+        goes out the door to Swiggy, Zomato and Magicpin, which means the kitchen
+        does one thing and does it properly.
+      </p>
+      <p>
+        The menu is deliberately short. Biryani is what we're known for. The
+        gravies, the desserts and the chai earned their place over the years and
+        haven't moved since.
+      </p>
+
+      <a class="btn btn--primary" href="/order" data-track="order_click" data-placement="about">Order Now</a>
+    </div>
+  </section>
+</Base>

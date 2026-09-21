@@ -1,0 +1,16 @@
+---
+// Real photo when one exists, a designed slot when it doesn't.
+// When photos land, swap the <img> for astro:assets <Image /> to get
+// automatic AVIF/WebP + srcset (see the performance budget in the plan).
+const { src = null, alt = '', mark = '' } = Astro.props;
+---
+<div class="photo">
+  {src ? (
+    <img src={src} alt={alt} loading="lazy" decoding="async" width="800" height="600" />
+  ) : (
+    <Fragment>
+      <span class="photo__mark" aria-hidden="true">{mark}</span>
+      <span class="photo__note">Photo pending</span>
+    </Fragment>
+  )}
+</div>

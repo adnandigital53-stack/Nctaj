@@ -1,0 +1,27 @@
+{
+  "name": "nc-taj",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "dev:lan": "astro dev --host",
+    "build": "astro build",
+    "preview": "astro preview",
+    "preview:lan": "astro preview --host",
+    "check": "npm run check:contrast && npm run check:behaviour",
+    "check:contrast": "node scripts/check-contrast.mjs",
+    "check:behaviour": "node scripts/check-behaviour.mjs",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "dependencies": {
+    "astro": "^7.3.3"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0",
+    "wrangler": "^4.136.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

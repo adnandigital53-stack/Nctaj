@@ -1,0 +1,253 @@
+---
+import '../styles/global.css';
+import site from '../data/site.json';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import OrderBar from '../components/OrderBar.astro';
+import { ClientRouter } from 'astro:transitions';
+
+const { title, description = site.description, path = '/' } = Astro.props;
+const fullTitle = title ? `${title} — ${site.name}` : `${site.name} — ${site.tagline}`;
+const ga4 = site.analytics.ga4MeasurementId;
+
+// og:url and og:image have to be absolute, so they wait on siteUrl.
+const base = site.siteUrl?.replace(/\/$/, '') ?? null;
+const canonical = base ? new URL(path, `${base}/`).href : null;
+const ogImage = base ? `${base}/og.jpg` : null;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#0E0E10" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    {/* Client-side navigation, so moving between pages cross-fades instead
+        of flashing white. Scripts re-init on astro:page-load below. */}
+    <ClientRouter />
+
+    {/* Link previews (WhatsApp, iMessage, Slack, X). og:url and og:image must
+        be absolute, so they only render once site.siteUrl is set — the rest
+        work as soon as the page is reachable. */}
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:locale" content="en_IN" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    {site.siteUrl && (
+      <Fragment>
+        <link rel="canonical" href={canonical} />
+        <meta property="og:url" content={canonical} />
+        <meta property="og:image" content={ogImage} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content={`${site.name} — ${site.tagline}`} />
+        <meta name="twitter:image" content={ogImage} />
+      </Fragment>
+    )}
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400;1,9..144,600&family=Inter:wght@400;500;600&display=swap"
+    />
+
+    {ga4 && (
+      <Fragment>
+        <script async src={`https://www.googletagmanager.com/gtag/js?id=${ga4}`}></script>
+        <script is:inline define:vars={{ ga4 }}>
+          window.dataLayer = window.dataLayer || [];
+          function gtag() { window.dataLayer.push(arguments); }
+          window.gtag = gtag;
+          gtag('js', new Date());
+          gtag('config', ga4);
+        </script>
+      </Fragment>
+    )}
+  </head>
+
+  <body>
+    <div class="progress" transition:persist></div>
+    <Header path={path} transition:persist />
+
+    <main id="main">
+      <slot />
+    </main>
+
+    <Footer />
+    <OrderBar transition:persist />
+
+    <script is:inline>
+      (() => {
+        // --- bound once for the life of the document ------------------
+        if (!window.__nctaj) {
+          window.__nctaj = { io: null };
+
+          // Outbound click tracking. Fires with or without GA4 configured.
+          document.addEventListener('click', (e) => {
+            const el = e.target.closest('[data-track]');
+            if (!el) return;
+            const params = {};
+            if (el.dataset.platform) params.platform = el.dataset.platform;
+            if (el.dataset.placement) params.placement = el.dataset.placement;
+            if (typeof window.gtag === 'function') {
+              window.gtag('event', el.dataset.track, params);
+            } else {
+              window.dataLayer = window.dataLayer || [];
+              window.dataLayer.push({ event: el.dataset.track, ...params });
+            }
+          });
+
+          // Only needed where scroll-driven CSS animations aren't available;
+          // elsewhere .progress animates on its own timeline.
+          const needsProgressJS = !CSS.supports('animation-timeline', 'scroll()');
+
+          const onScroll = () => {
+            const y = window.scrollY;
+            document.querySelector('.header')?.classList.toggle('is-stuck', y > 24);
+            document.querySelector('.order-bar')?.classList.toggle('is-visible', y > 400);
+
+            if (needsProgressJS) {
+              const bar = document.querySelector('.progress');
+              if (bar) {
+                const max = document.documentElement.scrollHeight - window.innerHeight;
+                bar.style.transform = `scaleX(${max > 0 ? Math.min(y / max, 1) : 0})`;
+              }
+            }
+          };
+
+          // Cursor spotlight: pointer position handed to CSS as percentages.
+          if (window.matchMedia('(hover: hover)').matches) {
+            document.addEventListener('pointermove', (e) => {
+              const card = e.target.closest?.('.card');
+              if (!card) return;
+              const r = card.getBoundingClientRect();
+              card.style.setProperty('--mx', `${((e.clientX - r.left) / r.width) * 100}%`);
+              card.style.setProperty('--my', `${((e.clientY - r.top) / r.height) * 100}%`);
+            }, { passive: true });
+          }
+
+          // --- live open / closed -------------------------------------
+          const fmt12 = (hhmm) => {
+            const [h, m] = hhmm.split(':').map(Number);
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            const hr = h % 12 === 0 ? 12 : h % 12;
+            return m ? `${hr}:${String(m).padStart(2, '0')} ${ampm}` : `${hr} ${ampm}`;
+          };
+
+          const updateStatus = () => {
+            document.querySelectorAll('[data-open-status]').forEach((el) => {
+              const tz = el.dataset.tz || 'Asia/Kolkata';
+              let nowMins;
+              try {
+                // The kitchen's clock, not the visitor's.
+                const parts = new Intl.DateTimeFormat('en-GB', {
+                  timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false,
+                }).formatToParts(new Date());
+                const hh = Number(parts.find((x) => x.type === 'hour').value);
+                const mm = Number(parts.find((x) => x.type === 'minute').value);
+                nowMins = hh * 60 + mm;
+              } catch {
+                return; // leave it hidden rather than show a wrong state
+              }
+
+              const toMins = (v) => { const [h, m] = v.split(':').map(Number); return h * 60 + m; };
+              const open = toMins(el.dataset.opens);
+              const close = toMins(el.dataset.closes);
+              // Handles a closing time that runs past midnight.
+              const isOpen = close > open
+                ? (nowMins >= open && nowMins < close)
+                : (nowMins >= open || nowMins < close);
+
+              const untilClose = isOpen ? ((close - nowMins) + 1440) % 1440 : null;
+              const soon = isOpen && untilClose !== null && untilClose <= 45;
+
+              el.classList.toggle('is-open', isOpen && !soon);
+              el.classList.toggle('is-soon', soon);
+              el.classList.toggle('is-closed', !isOpen);
+
+              const text = el.querySelector('.status__text');
+              if (text) {
+                text.textContent = soon
+                  ? `Closing in ${untilClose} min`
+                  : isOpen
+                    ? 'Open now'
+                    : `Closed · opens ${fmt12(el.dataset.opens)}`;
+              }
+              el.hidden = false;
+            });
+          };
+          window.__nctaj.updateStatus = updateStatus;
+          setInterval(updateStatus, 60000);
+          window.addEventListener('scroll', onScroll, { passive: true });
+          window.addEventListener('resize', () => window.__nctaj.measure?.(), { passive: true });
+          window.__nctaj.onScroll = onScroll;
+        }
+
+        // --- re-run for every page, including the first ---------------
+        function init() {
+          const header = document.querySelector('.header');
+
+          // Sticky offsets derive from the real header height, which changes
+          // when the preview banner appears or the fonts land.
+          const measure = () => {
+            if (!header) return;
+            const banner = header.querySelector('.preview-banner');
+            const bar = header.querySelector('.header__inner');
+            const h = (banner?.offsetHeight ?? 0) + (bar?.offsetHeight ?? 0);
+            document.documentElement.style.setProperty('--header-h', h + 'px');
+          };
+          window.__nctaj.measure = measure;
+          measure();
+          if (document.fonts?.ready) document.fonts.ready.then(measure);
+
+          window.__nctaj.onScroll();
+          window.__nctaj.updateStatus();
+
+          // The header persists across navigations, so only bind once.
+          const burger = document.querySelector('.burger');
+          const mobileNav = document.querySelector('.mobile-nav');
+          if (burger && !burger.dataset.bound) {
+            burger.dataset.bound = '1';
+            burger.addEventListener('click', () => {
+              const open = burger.getAttribute('aria-expanded') === 'true';
+              burger.setAttribute('aria-expanded', String(!open));
+              mobileNav?.setAttribute('data-open', String(!open));
+            });
+          }
+          // Always close it after a navigation.
+          burger?.setAttribute('aria-expanded', 'false');
+          mobileNav?.setAttribute('data-open', 'false');
+
+          // Fresh observer per page; the old one's targets are gone.
+          window.__nctaj.io?.disconnect();
+          const reveals = document.querySelectorAll('.reveal');
+          if ('IntersectionObserver' in window && reveals.length) {
+            const io = new IntersectionObserver((entries) => {
+              entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                  entry.target.classList.add('is-in');
+                  io.unobserve(entry.target);
+                }
+              });
+            }, { rootMargin: '0px 0px -8% 0px' });
+            reveals.forEach((el) => io.observe(el));
+            window.__nctaj.io = io;
+          }
+        }
+
+        document.addEventListener('astro:page-load', init);
+        if (document.readyState !== 'loading') init();
+        else document.addEventListener('DOMContentLoaded', init, { once: true });
+      })();
+    </script>
+  </body>
+</html>

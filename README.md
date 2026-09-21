@@ -1,1 +1,170 @@
-# Nctaj
+# NC Taj
+
+Website for **NC Taj** (Noorani Canteen, est. 1987) — a delivery-only kitchen
+listed on Swiggy, Zomato and Magicpin.
+
+Static Astro site, no backend. The full brief lives in
+[`nc-taj-website-plan.md`](./nc-taj-website-plan.md) — read it before changing
+the palette, the terminology or the performance budget.
+
+## Running it
+
+```bash
+npm install
+npm run dev        # http://localhost:4321
+npm run build      # static output to dist/
+npm run preview    # serve the built site
+```
+
+### Viewing it on a phone
+
+This is a mobile-first site, so check it on a real phone rather than only in
+a desktop window.
+
+```bash
+npm run dev:lan        # or: npm run preview:lan for the built site
+```
+
+`--host` binds to `0.0.0.0` instead of localhost, and Astro prints a second
+**Network:** URL (e.g. `http://192.168.1.x:4321/`). Open that on your phone
+with both devices on the same Wi-Fi.
+
+If it doesn't load: the two devices are on different networks (guest Wi-Fi and
+main, or the phone is on mobile data), or the machine's firewall is blocking
+the port — macOS and Windows both prompt the first time, and the prompt has to
+be allowed.
+
+## Checks
+
+Both run against a **running preview server** (`npm run preview` in another
+terminal):
+
+```bash
+npm run check             # both
+npm run check:contrast    # WCAG AA on every page, post-cascade
+npm run check:behaviour   # filters, nav, analytics, tap targets, overflow
+```
+
+`check:contrast` renders each page and measures the colours the browser
+actually paints, compositing translucent layers. It exists because a CSS
+specificity accident once repainted the header CTA cream-on-saffron (1.89:1) —
+reading the stylesheet would not have caught it.
+
+`check:behaviour` derives its expectations from `menu.json`, so editing the menu
+does not break the tests.
+
+## Editing the menu
+
+Everything lives in **`src/data/menu.json`**. No markup changes needed.
+
+```jsonc
+{
+  "status": "placeholder",   // "live" hides the preview banner + shows prices
+  "categories": [
+    {
+      "id": "biryani",       // also the anchor: /menu#biryani
+      "name": "Biryani",
+      "blurb": "One line of character.",
+      "items": [
+        {
+          "id": "chicken-dum-biryani",
+          "name": "Chicken Dum Biryani",
+          "description": "Shown under the name.",
+          "price": 320,           // number, or null → renders "Price TBC"
+          "veg": false,           // drives the veg/non-veg mark + filter
+          "photo": "/img/menu/chicken-dum-biryani.avif",  // or null
+          "available": true,      // false removes it from the site entirely
+          "tags": ["bestseller"]  // "bestseller" renders a chip
+        }
+      ]
+    }
+  ]
+}
+```
+
+Site-wide details — phone, WhatsApp, address, hours, aggregator links, GA4 ID,
+FSSAI number — live in **`src/data/site.json`**. Anything left `null` renders as
+"coming soon" rather than as a dead link, so a half-filled config never ships
+something broken.
+
+## Going live
+
+This build is a **preview**. The orange banner is rendered automatically while
+`menu.json` has `"status": "placeholder"`, and disappears on its own once set to
+`"live"`. Before flipping it:
+
+- [ ] Real menu items and prices in `menu.json`
+- [ ] Real photography (see the shot list in the plan) — **no stock food photos**
+- [ ] Phone, WhatsApp, address, hours in `site.json`
+- [ ] Swiggy / Zomato / Magicpin listing URLs in `site.json`
+- [ ] Real About copy — the current story is placeholder prose
+- [ ] `"status": "live"`
+
+Deferred, in order: GA4 measurement ID → Maps link and social → legal pages →
+a self-serve menu editor → domain → cart and checkout. See the plan.
+(Link previews and the FSSAI number are done.)
+
+Analytics is not launch-blocking: with no `ga4MeasurementId`, click events
+still fire and queue to `dataLayer`, so adding the ID later starts collection
+without any other change.
+
+## Hosting
+
+Static output, so any static host works. Recommended: **Cloudflare Pages**
+(unlimited bandwidth on the free tier, and the densest edge presence in India).
+
+Connect the GitHub repo and use:
+
+| Setting | Value |
+|---|---|
+| Framework preset | Astro |
+| Build command | `npm run build` |
+| Output directory | `dist` |
+| Node version | from `.nvmrc` (22) |
+
+Every push to the branch redeploys automatically.
+
+After the first deploy, set `siteUrl` in `site.json` to the live URL — that
+switches on `og:url`, `og:image` and the canonical tags, so WhatsApp link
+previews start working. It can be the free subdomain
+(`nctaj.pages.dev`); swap it for the real domain when there is one.
+
+Alternatives: **Netlify** (equally simple, 100GB/month free) and **GitHub
+Pages** (free forever, needs a build workflow). **Vercel** works well
+technically, but its free Hobby tier is licensed for non-commercial use only,
+which a restaurant site is not.
+
+## Link previews
+
+`og.jpg` (1200×630, 82KB) is a typographic card rendered from the design
+system — no food photography needed, so it works today. Regenerate it from
+`scripts/og-template` once real photos exist.
+
+Title, description and `twitter:card` ship on every page already. `og:url`,
+`og:image` and `<link rel="canonical">` must be absolute URLs, so they render
+only once **`siteUrl`** is set in `site.json` (e.g. `"https://nctaj.in"`).
+Set it and every page gets a correct per-page canonical automatically.
+
+Previews cannot be tested until the site is deployed somewhere public —
+WhatsApp has to fetch the page to read the tags. Once live, validate at
+`developers.facebook.com/tools/debug/`, which also clears the cache if you
+change the image later.
+
+## Photography
+
+`PhotoSlot.astro` renders a designed placeholder when `photo` is `null`. When
+real photos land, swap its `<img>` for Astro's `<Image />` to get automatic
+AVIF/WebP and `srcset` — that is most of the performance budget handled.
+
+Budget: LCP ≤ 2.5s on mid-range Android over 4G, hero ≤ 200KB, thumbs ≤ 60KB,
+total initial payload ≤ 1MB. The current build ships ~7KB gzipped and no JS
+bundle, so the entire budget is available for images.
+
+## Notes
+
+- Saffron `#E8A33D` is the primary accent. Terracotta `#C0603C` is **large text
+  only** — it measures 4.24:1 on card surfaces and fails for body copy.
+- Buttons on saffron take near-black labels. Cream on saffron is 1.89:1.
+- `--header-h` is measured at runtime; sticky offsets and scroll anchors derive
+  from it, so the preview banner can appear or vanish without breaking layout.
+- Egg dishes are marked `veg: false`, following the usual Indian convention.

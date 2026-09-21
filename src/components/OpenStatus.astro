@@ -1,0 +1,18 @@
+---
+import site from '../data/site.json';
+const h = site.contact.hours;
+const { placement = 'default' } = Astro.props;
+---
+{h && (
+  <span
+    class={`status status--${placement}`}
+    data-open-status
+    data-opens={h.opens}
+    data-closes={h.closes}
+    data-tz={h.timezone}
+    hidden
+  >
+    <span class="status__dot" aria-hidden="true"></span>
+    <span class="status__text"></span>
+  </span>
+)}

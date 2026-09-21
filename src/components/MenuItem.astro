@@ -1,0 +1,23 @@
+---
+import PhotoSlot from './PhotoSlot.astro';
+import VegMark from './VegMark.astro';
+
+const { item, index = 0 } = Astro.props;
+const hasPrice = typeof item.price === 'number';
+---
+<article class="card item" data-veg={String(item.veg)} style={`--i:${index}; view-transition-name: item-${item.id}`}>
+  <PhotoSlot src={item.photo} alt={item.name} mark={item.name.charAt(0)} />
+  <div class="card__body">
+    <div class="item__head">
+      <h3 class="item__name">
+        <VegMark veg={item.veg} />
+        {item.name}
+        {item.tags?.includes('bestseller') && <span class="tag">Bestseller</span>}
+      </h3>
+      {hasPrice
+        ? <span class="item__price">₹{item.price}</span>
+        : <span class="item__price item__price--tbc">Price TBC</span>}
+    </div>
+    {item.description && <p class="item__desc">{item.description}</p>}
+  </div>
+</article>

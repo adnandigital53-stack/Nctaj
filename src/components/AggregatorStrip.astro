@@ -1,0 +1,32 @@
+---
+import site from '../data/site.json';
+const { placement = 'hero' } = Astro.props;
+const platforms = [
+  { key: 'swiggy', name: 'Swiggy' },
+  { key: 'zomato', name: 'Zomato' },
+  { key: 'magicpin', name: 'Magicpin' },
+];
+---
+<div class="strip">
+  <span class="strip__label">Order on</span>
+  <div class="strip__list">
+    {platforms.map((p, i) => (
+      <Fragment>
+        {site.order[p.key] ? (
+          <a
+            class="strip__item"
+            href={site.order[p.key]}
+            target="_blank"
+            rel="noopener"
+            data-track="order_click"
+            data-platform={p.key}
+            data-placement={placement}
+          >{p.name}</a>
+        ) : (
+          <span class="strip__item" aria-disabled="true" title="Link coming soon">{p.name}</span>
+        )}
+        {i < platforms.length - 1 && <span class="strip__sep" aria-hidden="true">·</span>}
+      </Fragment>
+    ))}
+  </div>
+</div>

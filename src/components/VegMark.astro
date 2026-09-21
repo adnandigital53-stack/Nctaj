@@ -1,0 +1,5 @@
+---
+const { veg } = Astro.props;
+const label = veg ? 'Vegetarian' : 'Non-vegetarian';
+---
+<span class={`mark ${veg ? 'mark--veg' : 'mark--nonveg'}`} role="img" aria-label={label}></span>

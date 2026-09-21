@@ -1,0 +1,60 @@
+---
+import Base from '../layouts/Base.astro';
+import site from '../data/site.json';
+
+const platforms = [
+  { key: 'swiggy', name: 'Swiggy', meta: 'Usually the fastest in our area' },
+  { key: 'zomato', name: 'Zomato', meta: 'Full menu, with photos' },
+  { key: 'magicpin', name: 'Magicpin', meta: 'Often has the better offer' },
+];
+const anyLive = platforms.some((p) => site.order[p.key]);
+---
+<Base path="/order" title="Order" description="Order NC Taj on Swiggy, Zomato or Magicpin.">
+  <section class="section page-head">
+    <div class="wrap wrap--narrow">
+      <p class="eyebrow">Delivery only</p>
+      <h1>Order Now</h1>
+      <p class="lede" style="margin-bottom: 3rem;">
+        We deliver through the apps below. Same kitchen, same menu — pick whichever
+        one you already have.
+      </p>
+
+      {!anyLive && (
+        <p class="card" style="padding: 1.25rem 1.5rem; color: var(--cream-muted); font-size: var(--step-sm);">
+          Our listing links are being added. In the meantime, search
+          <strong style="color: var(--cream);"> NC Taj </strong>
+          on any of the three apps.
+        </p>
+      )}
+
+      <div class="grid" style="gap: 1rem; margin-top: 1.5rem;">
+        {platforms.map((p) => (
+          site.order[p.key] ? (
+            <a
+              class="platform"
+              href={site.order[p.key]}
+              target="_blank"
+              rel="noopener"
+              data-track="order_click"
+              data-platform={p.key}
+              data-placement="order_page"
+            >
+              <span>
+                <span class="platform__name">{p.name}</span>
+                <p class="platform__meta">{p.meta}</p>
+              </span>
+              <span class="platform__arrow" aria-hidden="true">→</span>
+            </a>
+          ) : (
+            <div class="platform" aria-disabled="true">
+              <span>
+                <span class="platform__name">{p.name}</span>
+                <p class="platform__meta">Link coming soon</p>
+              </span>
+            </div>
+          )
+        ))}
+      </div>
+    </div>
+  </section>
+</Base>
