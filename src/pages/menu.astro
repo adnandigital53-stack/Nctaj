@@ -85,13 +85,31 @@ import menu from '../data/menu.json';
             buttons.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
             const mode = btn.dataset.filter;
 
-            // Each item carries a view-transition-name, so the cards that stay
-            // slide into their new positions rather than jumping.
-            const run = () => apply(mode);
-            if (document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-              document.startViewTransition(run);
-            } else {
-              run();
+            // FLIP: note where every visible card is, apply the filter at once,
+            // then glide each surviving card from its old spot to its new one.
+            // The response is instant — a view transition had to snapshot all
+            // 17 cards first and made taps wait ~300ms before anything moved.
+            const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const before = new Map();
+            if (!reduce) {
+              items.forEach((el) => { if (!el.hidden) before.set(el, el.getBoundingClientRect()); });
+            }
+
+            apply(mode);
+
+            if (!reduce) {
+              items.forEach((el) => {
+                const from = before.get(el);
+                if (el.hidden || !from) return;   // newly shown cards replay their own entrance
+                const to = el.getBoundingClientRect();
+                const dx = from.left - to.left;
+                const dy = from.top - to.top;
+                if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+                el.animate(
+                  [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
+                  { duration: 520, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
+                );
+              });
             }
 
             if (typeof window.gtag === 'function') {

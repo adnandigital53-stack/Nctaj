@@ -2,15 +2,24 @@
 import Base from '../layouts/Base.astro';
 import AggregatorStrip from '../components/AggregatorStrip.astro';
 import OpenStatus from '../components/OpenStatus.astro';
+import SplitText from '../components/SplitText.astro';
 import menu from '../data/menu.json';
 import site from '../data/site.json';
+
+const dishes = menu.categories.flatMap((c) => c.items.filter((i) => i.available).map((i) => i.name));
 ---
 <Base path="/">
   <section class="hero">
+    <canvas class="embers" aria-hidden="true"></canvas>
     <div class="wrap hero__inner">
       <p class="eyebrow">Since {site.established} · Noorani Canteen</p>
       <OpenStatus placement="hero" />
-      <h1>Biryani worth <em>the wait</em>.</h1>
+      <h1 class="split" aria-label="Biryani worth the wait.">
+        <span class="w" style="--w:0" aria-hidden="true"><span>Biryani</span></span>{' '}
+        <span class="w" style="--w:1" aria-hidden="true"><span>worth</span></span>{' '}
+        <span class="w" style="--w:2" aria-hidden="true"><span><em>the</em></span></span>{' '}
+        <span class="w" style="--w:3" aria-hidden="true"><span><em>wait</em>.</span></span>
+      </h1>
       <p class="hero__lede">
         Sealed, slow-cooked and opened only when it reaches you. The same kitchen
         since 1987, now delivered to your door.
@@ -21,6 +30,7 @@ import site from '../data/site.json';
       </div>
       <AggregatorStrip placement="hero" />
     </div>
+    <div class="scroll-cue" aria-hidden="true"><span>Scroll</span><i></i></div>
   </section>
 
   <section class="section">
@@ -28,7 +38,7 @@ import site from '../data/site.json';
       <div class="grid grid--2" style="align-items: center; gap: clamp(2rem, 6vw, 4rem);">
         <div class="reveal">
           <p class="eyebrow">The short version</p>
-          <h2>One kitchen. One recipe. Since 1987.</h2>
+          <SplitText text="One kitchen. One recipe. Since 1987." />
           <p class="lede">
             Noorani Canteen opened in 1987 and has been cooking the same way ever
             since — bone-in, sealed on dum, no shortcuts. We don't do dine-in any
@@ -48,10 +58,25 @@ import site from '../data/site.json';
     </div>
   </section>
 
-  <section class="section" style="padding-top: 0;">
+  <div class="ribbon" data-marquee aria-hidden="true">
+    <div class="ribbon__track">
+      {[0, 1].map(() => (
+        <div class="ribbon__set">
+          {dishes.map((d) => (
+            <Fragment>
+              <span class="ribbon__item">{d}</span>
+              <span class="ribbon__sep">✦</span>
+            </Fragment>
+          ))}
+        </div>
+      ))}
+    </div>
+  </div>
+
+  <section class="section">
     <div class="wrap">
       <p class="eyebrow">What we cook</p>
-      <h2 style="margin-bottom: 2.5rem;">Four things, done properly.</h2>
+      <div class="reveal"><SplitText text="Four things, done properly." style="margin-bottom: 2.5rem;" /></div>
       <div class="grid grid--2">
         {menu.categories.filter((cat) => cat.items.some((i) => i.available)).map((cat, i) => (
           <a class="card reveal" href={`/menu#${cat.id}`} style={`--i:${i}; text-decoration:none; color:inherit;`}>
@@ -68,9 +93,9 @@ import site from '../data/site.json';
   <section class="section" style="padding-top: 0;">
     <div class="wrap">
       <hr class="rule" />
-      <div style="text-align: center; padding-top: clamp(3rem, 8vw, 5rem);">
+      <div class="reveal" style="text-align: center; padding-top: clamp(3rem, 8vw, 5rem);">
         <p class="eyebrow eyebrow--center">Hungry?</p>
-        <h2>We're on all three.</h2>
+        <SplitText text="We're on all three." />
         <p class="lede" style="margin-inline: auto;">
           Pick whichever app you already have open.
         </p>

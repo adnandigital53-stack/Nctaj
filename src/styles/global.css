@@ -790,11 +790,11 @@ body { padding-bottom: 0; }
 
 .reveal {
   opacity: 0;
-  transform: translateY(18px);
-  transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+  translate: 0 18px;
+  transition: opacity 0.7s var(--ease), translate 0.7s var(--ease);
 }
 
-.reveal.is-in { opacity: 1; transform: none; }
+.reveal.is-in { opacity: 1; translate: none; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -802,7 +802,7 @@ body { padding-bottom: 0; }
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
-  .reveal { opacity: 1; transform: none; }
+  .reveal { opacity: 1; transform: none; translate: none; }
 }
 
 .visually-hidden {
@@ -827,9 +827,13 @@ body { padding-bottom: 0; }
    and all of it is switched off under prefers-reduced-motion at the bottom.
    ========================================================================== */
 
+/* Entrances animate the individual `translate` property, never `transform`.
+   A fill-mode:both animation holds its end value indefinitely, and a held
+   `transform: none` out-ranks .card:hover — the lift measured 0px until this
+   moved. `translate` and `transform` compose, so the two can't collide. */
 @keyframes fadeUp {
-  from { opacity: 0; transform: translate3d(0, 20px, 0); }
-  to   { opacity: 1; transform: none; }
+  from { opacity: 0; translate: 0 20px; }
+  to   { opacity: 1; translate: none; }
 }
 
 /* A slow convection in the hero's floor-glow — reads as heat, not as an
@@ -935,7 +939,7 @@ body { padding-bottom: 0; }
     transition-delay: 0ms !important;
   }
   .hero::before { animation: none !important; }
-  .hero__inner > *, .item { opacity: 1 !important; transform: none !important; }
+  .hero__inner > *, .item { opacity: 1 !important; transform: none !important; translate: none !important; }
   ::view-transition-old(root), ::view-transition-new(root) { animation: none !important; }
 }
 
@@ -1079,4 +1083,282 @@ body { padding-bottom: 0; }
 @media (prefers-reduced-motion: reduce) {
   .status.is-open .status__dot::after { animation: none !important; }
   .progress { animation: none !important; }
+}
+
+/* ==========================================================================
+   Premium motion
+   One signature move — embers rising off the hero glow, the way heat comes
+   off a dum pot — and everything else kept quiet in service of it.
+   Compositor-friendly properties only; all of it off under reduced motion.
+   ========================================================================== */
+
+:root { --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1); }
+
+/* ---------- headlines rise out of a mask, word by word ---------- */
+
+.split .w {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  /* Room for descenders (the y in Biryani) and the italic overhang on
+     "wait" — without it the mask shaves them off. */
+  padding: 0 0.08em 0.14em 0;
+  margin: 0 -0.08em -0.14em 0;
+}
+
+.split .w > span { display: inline-block; }
+
+/* Hidden only where something is guaranteed to bring it back. */
+.hero .split .w > span,
+.reveal .split .w > span { transform: translate3d(0, 112%, 0); }
+
+.hero .split .w > span {
+  animation: wordRise 1.05s var(--ease-out-expo) both;
+  animation-delay: calc(0.22s + var(--w, 0) * 90ms);
+}
+
+@keyframes wordRise { to { transform: none; } }
+
+.reveal .split .w > span {
+  transition: transform 1s var(--ease-out-expo);
+  transition-delay: calc(0.1s + var(--w, 0) * 70ms);
+}
+
+.reveal.is-in .split .w > span { transform: none; }
+
+/* The words carry the headline's entrance; don't also fade the block. */
+.hero__inner > .split { animation: none; }
+
+/* ---------- embers ---------- */
+
+.hero__inner { position: relative; z-index: 1; }
+
+.embers {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 2.2s ease;
+}
+
+.embers.is-live { opacity: 1; }
+
+/* ---------- the hero lifts away as you scroll ---------- */
+
+@supports (animation-timeline: scroll()) {
+  .hero__inner {
+    animation: heroLift linear both;
+    animation-timeline: scroll(root block);
+    animation-range: 0 85vh;
+  }
+
+  @keyframes heroLift {
+    to { transform: translate3d(0, -10vh, 0); opacity: 0.05; }
+  }
+}
+
+/* ---------- scroll cue (desktop, where there's room for it) ---------- */
+
+.scroll-cue { display: none; }
+
+@media (min-width: 860px) and (min-height: 720px) {
+  .scroll-cue {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 26px;
+    z-index: 1;
+    width: max-content;
+    margin-inline: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--cream-muted);
+    animation: fadeUp 1s var(--ease-out-expo) 1.3s both;
+  }
+
+  .scroll-cue i {
+    position: relative;
+    width: 1px;
+    height: 46px;
+    overflow: hidden;
+    background: var(--hairline-strong);
+  }
+
+  .scroll-cue i::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1px;
+    height: 40%;
+    background: var(--saffron);
+    transform: translateY(-100%);
+    animation: cueDrop 2.4s var(--ease) 2s infinite;
+  }
+}
+
+@keyframes cueDrop {
+  0%        { transform: translateY(-100%); }
+  65%, 100% { transform: translateY(260%); }
+}
+
+/* ---------- eyebrow rules draw themselves in ---------- */
+
+@property --line {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
+}
+
+@keyframes drawLine { from { --line: 0; } to { --line: 1; } }
+
+.eyebrow::after {
+  transform: scaleX(var(--line));
+  transform-origin: 0 50%;
+}
+
+/* page heads: on arrival */
+.eyebrow { animation: drawLine 1.3s var(--ease-out-expo) 0.45s both; }
+
+/* the hero one keeps its fade as well */
+.hero__inner > .eyebrow {
+  animation:
+    fadeUp 0.9s var(--ease) 0.06s both,
+    drawLine 1.4s var(--ease-out-expo) 0.7s both;
+}
+
+/* inside a scroll reveal: when the block arrives */
+.reveal .eyebrow {
+  animation: none;
+  --line: 0;
+  transition: --line 1.3s var(--ease-out-expo) 0.35s;
+}
+
+.reveal.is-in .eyebrow { --line: 1; }
+
+/* menu categories: drawn by scrolling past them */
+@supports (animation-timeline: view()) {
+  .menu-category .eyebrow {
+    animation: drawLine linear both;
+    animation-timeline: view();
+    animation-range: entry 100% cover 38%;
+  }
+}
+
+/* ---------- photos drift inside their frames as they pass ---------- */
+
+@supports (animation-timeline: view()) {
+  .card .photo > img,
+  .card .photo > .photo__mark {
+    animation: drift linear both;
+    animation-timeline: view();
+    animation-range: cover 0% cover 100%;
+  }
+
+  /* headroom so the drift never exposes an edge */
+  .card .photo > img { scale: 1.16; }
+
+  @keyframes drift {
+    from { translate: 0 -7%; }
+    to   { translate: 0 7%; }
+  }
+}
+
+/* ---------- dish ribbon ---------- */
+
+.ribbon {
+  position: relative;
+  overflow: hidden;
+  padding-block: clamp(1.1rem, 3vw, 1.7rem);
+  border-block: 1px solid var(--hairline);
+  background: linear-gradient(90deg, rgba(232, 163, 61, 0.025), rgba(192, 96, 60, 0.06), rgba(232, 163, 61, 0.025));
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+          mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+}
+
+.ribbon__track {
+  display: flex;
+  width: max-content;
+  animation: marquee 75s linear infinite;
+}
+
+/* two identical sets; sliding by exactly one set width is seamless */
+@keyframes marquee { to { transform: translate3d(-50%, 0, 0); } }
+
+.ribbon:hover .ribbon__track,
+.ribbon.is-paused .ribbon__track { animation-play-state: paused; }
+
+.ribbon__set {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.ribbon__item {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: clamp(1.35rem, 1.05rem + 1.6vw, 2.3rem);
+  line-height: 1.2;
+  color: var(--cream);
+  white-space: nowrap;
+  padding-inline: clamp(0.9rem, 2.4vw, 1.75rem);
+}
+
+.ribbon__sep {
+  color: var(--saffron);
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+/* ---------- arrivals on the order and contact pages ---------- */
+
+.stagger > * { animation: fadeUp 0.8s var(--ease-out-expo) both; }
+.stagger > *:nth-child(1) { animation-delay: 0.18s; }
+.stagger > *:nth-child(2) { animation-delay: 0.27s; }
+.stagger > *:nth-child(3) { animation-delay: 0.36s; }
+.stagger > *:nth-child(4) { animation-delay: 0.45s; }
+.stagger > *:nth-child(5) { animation-delay: 0.54s; }
+.stagger > *:nth-child(6) { animation-delay: 0.63s; }
+
+/* ---------- magnetic primary buttons (pointer set by script) ---------- */
+
+.btn--primary {
+  transition:
+    transform 0.25s var(--ease),
+    background-color 0.25s var(--ease),
+    border-color 0.25s var(--ease),
+    color 0.25s var(--ease),
+    box-shadow 0.3s var(--ease),
+    translate 0.5s var(--ease-out-expo);
+}
+
+/* ---------- reduced motion switches all of this off ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .split .w > span {
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+  .embers, .scroll-cue { display: none !important; }
+  .ribbon__track { animation: none !important; }
+  .hero__inner,
+  .eyebrow,
+  .card .photo > img,
+  .card .photo > .photo__mark,
+  .stagger > * { animation: none !important; }
+  .eyebrow { --line: 1 !important; }
+  .card .photo > img { scale: none !important; translate: none !important; }
+  .card .photo > .photo__mark { translate: none !important; }
+  .stagger > * { opacity: 1 !important; translate: none !important; }
+  .btn { translate: none !important; }
 }

@@ -27,7 +27,7 @@ const anyLive = platforms.some((p) => site.order[p.key]);
         </p>
       )}
 
-      <div class="grid" style="gap: 1rem; margin-top: 1.5rem;">
+      <div class="grid stagger" style="gap: 1rem; margin-top: 1.5rem;">
         {platforms.map((p) => (
           site.order[p.key] ? (
             <a

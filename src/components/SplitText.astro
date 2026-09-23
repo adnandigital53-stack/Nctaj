@@ -1,0 +1,17 @@
+---
+// Splits a heading into words that rise out of a mask. The copy stays a plain
+// string, so editing it never means touching markup.
+//
+// The whole heading is labelled with the original text and the per-word spans
+// are hidden from assistive tech, so screen readers hear one phrase rather
+// than a word at a time.
+const { text, as: Tag = 'h2', class: className = '', ...rest } = Astro.props;
+const words = String(text).split(/\s+/).filter(Boolean);
+---
+<Tag class:list={['split', className]} aria-label={text} {...rest}>
+  {words.map((word, i) => (
+    <Fragment>
+      <span class="w" style={`--w:${i}`} aria-hidden="true"><span>{word}</span></span>{' '}
+    </Fragment>
+  ))}
+</Tag>

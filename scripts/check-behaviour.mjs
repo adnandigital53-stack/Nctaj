@@ -179,6 +179,102 @@ check('header height re-measured after soft nav', /^\d+(\.\d+)?px$/.test(hh) && 
 
 await ctx.close();
 
+const wordsOffset = (page) => page.evaluate(() =>
+  [...document.querySelectorAll('.hero .split .w > span')].filter((el) => {
+    const t = getComputedStyle(el).transform;
+    if (t === 'none') return false;
+    const m = t.match(/matrix\(([^)]+)\)/);
+    return !m || Math.abs(parseFloat(m[1].split(',')[5])) > 0.5;
+  }).length,
+);
+
+// ---- premium motion ----
+{
+  const mctx = await b.newContext({ viewport: { width: 1440, height: 900 } });
+  const mp = await mctx.newPage();
+
+  // Regression: entrance animations used to hold `transform: none` and cancel
+  // the hover lift. It measured 0px for a whole round without anyone noticing.
+  for (const [url, sel] of [['/menu', '.item'], ['/', 'a.card.reveal']]) {
+    await mp.goto(`${BASE}${url}`, { waitUntil: 'load' });
+    await mp.waitForTimeout(1500);
+    const card = mp.locator(sel).first();
+    await card.scrollIntoViewIfNeeded();
+    await mp.waitForTimeout(1200);
+    await mp.mouse.move(5, 5);
+    await mp.waitForTimeout(500);
+    const before = (await card.boundingBox()).y;
+    await card.hover();
+    await mp.waitForTimeout(700);
+    const lift = before - (await card.boundingBox()).y;
+    check(`hover lift works on ${url} ${sel}`, lift >= 4, `lifted ${lift.toFixed(1)}px`);
+  }
+
+  // Headline words rise out of their masks and come to rest.
+  await mp.goto(`${BASE}/`, { waitUntil: 'load' });
+  // Chrome restores the previous scroll position on a same-URL navigation,
+  // which would put the hero off screen and (correctly) pause the embers.
+  await mp.evaluate(() => window.scrollTo(0, 0));
+  await mp.waitForTimeout(2400);
+  const stuck = await wordsOffset(mp);
+  check('headline words finish rising', stuck === 0, `${stuck} words still offset`);
+
+  // Embers run while the hero is on screen and pause when it isn't.
+  const running = () => mp.evaluate(() => window.__nctaj?.embersRunning === true);
+  check('embers running on the hero', await running());
+  check('ember canvas faded in', await mp.locator('.embers.is-live').count() === 1);
+  await mp.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await mp.waitForTimeout(600);
+  check('embers pause when the hero is off screen', !(await running()));
+  await mp.evaluate(() => window.scrollTo(0, 0));
+  await mp.waitForTimeout(600);
+  check('embers resume when it comes back', await running());
+
+  // Soft navigation must stop the loop, and returning must restart it.
+  await mp.locator('.nav a[href="/menu"]').click();
+  await mp.waitForURL('**/menu');
+  await mp.waitForTimeout(600);
+  check('embers stop after navigating away', !(await running()));
+  await mp.locator('.wordmark').click();
+  await mp.waitForURL(`${BASE}/`);
+  await mp.waitForTimeout(900);
+  check('embers restart after navigating back', await running());
+
+  // Dish ribbon: two identical sets so the loop is seamless.
+  const sets = await mp.locator('.ribbon__set').evaluateAll((els) =>
+    els.map((el) => el.querySelectorAll('.ribbon__item').length),
+  );
+  check('ribbon has two matching sets of every dish', sets.length === 2 && sets[0] === TOTAL && sets[1] === TOTAL, JSON.stringify(sets));
+  check('ribbon hidden from screen readers', (await mp.locator('.ribbon').getAttribute('aria-hidden')) === 'true');
+
+  // Magnetic pull on primary buttons, released on leave.
+  const btn = mp.locator('.hero__actions .btn--primary');
+  const bb = await btn.boundingBox();
+  await mp.mouse.move(bb.x + bb.width - 6, bb.y + 6);
+  await mp.waitForTimeout(150);
+  const pulled = await btn.evaluate((el) => el.style.translate);
+  await mp.mouse.move(5, 5);
+  await mp.waitForTimeout(150);
+  const released = await btn.evaluate((el) => el.style.translate);
+  check('primary button pulls toward the cursor', pulled !== '' && released === '', `pulled="${pulled}" released="${released}"`);
+
+  await mctx.close();
+}
+
+// ---- reduced motion: everything calm, nothing hidden ----
+{
+  const rctx = await b.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
+  const rp = await rctx.newPage();
+  await rp.goto(`${BASE}/`, { waitUntil: 'load' });
+  await rp.waitForTimeout(300);
+  check('reduced motion: no embers', !(await rp.evaluate(() => window.__nctaj?.embersRunning === true)));
+  const offset = await wordsOffset(rp);
+  check('reduced motion: headline readable immediately', offset === 0, `${offset} words offset`);
+  const ribbonAnim = await rp.locator('.ribbon__track').evaluate((el) => getComputedStyle(el).animationName);
+  check('reduced motion: ribbon still', ribbonAnim === 'none', ribbonAnim);
+  await rctx.close();
+}
+
 // ---- mobile ----
 ctx = await b.newContext({ viewport: { width: 390, height: 844 } });
 p = await ctx.newPage();

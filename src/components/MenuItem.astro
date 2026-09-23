@@ -5,7 +5,7 @@ import VegMark from './VegMark.astro';
 const { item, index = 0 } = Astro.props;
 const hasPrice = typeof item.price === 'number';
 ---
-<article class="card item" data-veg={String(item.veg)} style={`--i:${index}; view-transition-name: item-${item.id}`}>
+<article class="card item" data-veg={String(item.veg)} style={`--i:${index}`}>
   <PhotoSlot src={item.photo} alt={item.name} mark={item.name.charAt(0)} />
   <div class="card__body">
     <div class="item__head">

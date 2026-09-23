@@ -187,6 +187,155 @@ const ogImage = base ? `${base}/og.jpg` : null;
           };
           window.__nctaj.updateStatus = updateStatus;
           setInterval(updateStatus, 60000);
+
+          // --- embers: the hero's signature ------------------------------
+          // Pre-rendered glow sprites with additive blending, so each ember is
+          // one drawImage. Runs only while the hero is on screen and the tab
+          // is visible, and stops before a soft navigation swaps the page.
+          const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          const E = { canvas: null, ctx: null, raf: 0, io: null, parts: [], w: 0, h: 0, last: 0, sprites: null, mobile: false };
+
+          const sprite = (r, g, b) => {
+            const c = document.createElement('canvas');
+            c.width = c.height = 64;
+            const x = c.getContext('2d');
+            const grd = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+            grd.addColorStop(0, `rgba(${r},${g},${b},1)`);
+            grd.addColorStop(0.22, `rgba(${r},${g},${b},0.6)`);
+            grd.addColorStop(1, `rgba(${r},${g},${b},0)`);
+            x.fillStyle = grd;
+            x.fillRect(0, 0, 64, 64);
+            return c;
+          };
+
+          const sizeCanvas = () => {
+            if (!E.canvas) return;
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            E.w = E.canvas.clientWidth;
+            E.h = E.canvas.clientHeight;
+            E.canvas.width = Math.round(E.w * dpr);
+            E.canvas.height = Math.round(E.h * dpr);
+            E.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          };
+
+          // Born at the floor-glow, biased toward the centre, gone before
+          // they reach the headline.
+          const spawn = (p, anywhere) => {
+            const centred = (Math.random() + Math.random()) / 2;
+            p.x = E.w * (0.08 + centred * 0.84);
+            p.y = anywhere ? E.h * (0.45 + Math.random() * 0.55) : E.h + 6;
+            p.r = 1.6 + Math.random() * 4.2;
+            p.vy = 0.22 + Math.random() * 0.55;
+            p.drift = (Math.random() - 0.5) * 0.22;
+            p.phase = Math.random() * Math.PI * 2;
+            p.age = 0;
+            p.ttl = 420 + Math.random() * 520;
+            p.peak = 0.3 + Math.random() * 0.45;
+            p.s = Math.random() < 0.72 ? 0 : 1;
+            return p;
+          };
+
+          const frame = (now) => {
+            E.raf = requestAnimationFrame(frame);
+            const elapsed = now - E.last;
+            // ~30fps on phones looks identical here and halves the cost.
+            if (E.mobile && elapsed < 30) return;
+            const dt = Math.min(elapsed / 16.67, 3);
+            E.last = now;
+
+            const { ctx, w, h } = E;
+            if (!w || !h) return;
+            ctx.clearRect(0, 0, w, h);
+            ctx.globalCompositeOperation = 'lighter';
+            for (const p of E.parts) {
+              p.age += dt;
+              p.y -= p.vy * dt;
+              p.phase += 0.012 * dt;
+              p.x += (p.drift + Math.sin(p.phase) * 0.2) * dt;
+
+              const rise = 1 - p.y / h;            // 0 at the floor, 1 at the top
+              if (p.y < -8 || p.age > p.ttl || rise > 0.78) { spawn(p, false); continue; }
+
+              const fadeIn = Math.min(p.age / 70, 1);
+              const fadeOut = 1 - Math.max(p.age / p.ttl, rise / 0.78);
+              const a = p.peak * fadeIn * fadeOut * fadeOut;
+              if (a < 0.004) continue;
+
+              const r = p.r * (1 + 0.18 * Math.sin(p.phase * 7)) * 2.4;
+              ctx.globalAlpha = a;
+              ctx.drawImage(E.sprites[p.s], p.x - r, p.y - r, r * 2, r * 2);
+            }
+            ctx.globalAlpha = 1;
+            ctx.globalCompositeOperation = 'source-over';
+          };
+
+          const run = () => {
+            if (E.raf || !E.canvas || document.hidden) return;
+            E.last = performance.now();
+            E.raf = requestAnimationFrame(frame);
+            window.__nctaj.embersRunning = true;
+          };
+          const pause = () => {
+            if (E.raf) cancelAnimationFrame(E.raf);
+            E.raf = 0;
+            window.__nctaj.embersRunning = false;
+          };
+          const stopEmbers = () => {
+            pause();
+            E.io?.disconnect();
+            E.io = null;
+            E.canvas = null;
+          };
+
+          window.__nctaj.startEmbers = () => {
+            const canvas = document.querySelector('.embers');
+            if (!canvas || reduced() || !('IntersectionObserver' in window)) { stopEmbers(); return; }
+            if (E.canvas === canvas) return;       // already driving this one
+            stopEmbers();
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            E.canvas = canvas;
+            E.ctx = ctx;
+            E.mobile = window.innerWidth < 720;
+            E.sprites ||= [sprite(232, 163, 61), sprite(226, 112, 58)];
+            sizeCanvas();
+            E.parts = Array.from({ length: E.mobile ? 22 : 44 }, () => spawn({}, true));
+            E.io = new IntersectionObserver(([entry]) => (entry.isIntersecting ? run() : pause()));
+            E.io.observe(canvas);
+            requestAnimationFrame(() => canvas.classList.add('is-live'));
+          };
+
+          document.addEventListener('visibilitychange', () => {
+            if (document.hidden) { pause(); return; }
+            if (!E.canvas) return;
+            const r = E.canvas.getBoundingClientRect();
+            if (r.bottom > 0 && r.top < window.innerHeight) run();
+          });
+          window.addEventListener('resize', sizeCanvas, { passive: true });
+          document.addEventListener('astro:before-swap', stopEmbers);
+
+          // --- magnetic primary buttons ------------------------------------
+          // Mouse only. Uses the `translate` property so it composes with the
+          // hover lift (transform) instead of replacing it.
+          if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+            let pulled = null;
+            const release = () => {
+              if (pulled) pulled.style.translate = '';
+              pulled = null;
+            };
+            document.addEventListener('pointermove', (e) => {
+              const btn = e.target.closest?.('.btn--primary');
+              if (btn !== pulled) release();
+              if (!btn || reduced()) return;
+              const r = btn.getBoundingClientRect();
+              const dx = e.clientX - (r.left + r.width / 2);
+              const dy = e.clientY - (r.top + r.height / 2);
+              btn.style.translate = `${(dx * 0.16).toFixed(1)}px ${(dy * 0.3).toFixed(1)}px`;
+              pulled = btn;
+            }, { passive: true });
+            document.documentElement.addEventListener('pointerleave', release);
+            document.addEventListener('astro:before-swap', release);
+          }
           window.addEventListener('scroll', onScroll, { passive: true });
           window.addEventListener('resize', () => window.__nctaj.measure?.(), { passive: true });
           window.__nctaj.onScroll = onScroll;
@@ -242,6 +391,19 @@ const ogImage = base ? `${base}/og.jpg` : null;
             reveals.forEach((el) => io.observe(el));
             window.__nctaj.io = io;
           }
+
+          // Pause the dish ribbon while it's off screen.
+          window.__nctaj.marqueeIO?.disconnect();
+          const ribbons = document.querySelectorAll('[data-marquee]');
+          if ('IntersectionObserver' in window && ribbons.length) {
+            const mio = new IntersectionObserver((entries) => {
+              entries.forEach((e) => e.target.classList.toggle('is-paused', !e.isIntersecting));
+            });
+            ribbons.forEach((r) => mio.observe(r));
+            window.__nctaj.marqueeIO = mio;
+          }
+
+          window.__nctaj.startEmbers();
         }
 
         document.addEventListener('astro:page-load', init);
