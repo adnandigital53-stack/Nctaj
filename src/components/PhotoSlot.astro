@@ -1,12 +1,31 @@
 ---
+import { Image } from 'astro:assets';
+
 // Real photo when one exists, a designed slot when it doesn't.
-// When photos land, swap the <img> for astro:assets <Image /> to get
-// automatic AVIF/WebP + srcset (see the performance budget in the plan).
+// menu.json's `photo` field is just the item id — resolved here against
+// every file in src/assets/menu, so Astro can optimize each one (AVIF/WebP
+// + srcset) at build time. A path can't be optimized this way, only a
+// statically-known import, hence the glob.
+const images = import.meta.glob<{ default: ImageMetadata }>(
+  '/src/assets/menu/*.{jpg,jpeg,png}',
+  { eager: true },
+);
+
 const { src = null, alt = '', mark = '' } = Astro.props;
+const resolved = src ? images[`/src/assets/menu/${src}.jpg`]?.default : null;
 ---
 <div class="photo">
-  {src ? (
-    <img src={src} alt={alt} loading="lazy" decoding="async" width="800" height="600" />
+  {resolved ? (
+    <Image
+      src={resolved}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      widths={[320, 480, 640]}
+      sizes="(min-width: 1000px) 360px, (min-width: 640px) 45vw, 90vw"
+      format="avif"
+      quality={72}
+    />
   ) : (
     <Fragment>
       <span class="photo__mark" aria-hidden="true">{mark}</span>

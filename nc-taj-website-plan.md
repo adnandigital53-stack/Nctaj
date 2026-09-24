@@ -7,9 +7,10 @@
 ## Business Overview
 - **Restaurant:** NC Taj — *NC = Noorani Canteen*
 - **Established:** 1987
-- **Cuisine:** Biryani, Starters, North Indian, Rice & Breads — veg & non-veg.
-  Taken from the restaurant's own menu poster; desserts and drinks are not on it
-  and may still need adding.
+- **Cuisine:** Biryani & Rice, Gravies & Curries, Snacks & Starters, Egg
+  Specials, Roti & Bread, Desserts, Coffee & Drinks — veg & non-veg. Taken from
+  the restaurant's live Swiggy listing (52 items, 2026-09-24), which supersedes
+  the earlier menu poster transcription.
 - **Model:** Delivery-only (no dine-in) — currently live on Swiggy, Zomato, Magicpin
 - **Location / hours / contact number:** *TBD — required before launch*
 
@@ -29,7 +30,7 @@ labels for the order action. These become literal UI text, so they are fixed her
 
 | Thing | Canonical string |
 |---|---|
-| Menu categories | **Biryani** · **Starters** · **North Indian** · **Rice & Breads** |
+| Menu categories | **Biryani & Rice** · **Gravies & Curries** · **Snacks & Starters** · **Egg Specials** · **Roti & Bread** · **Desserts** · **Coffee & Drinks** |
 | Nav item / page title | **Order** |
 | Every call-to-action button | **Order Now** |
 | Aggregator strip under the hero | **Order on Swiggy · Zomato · Magicpin** |
@@ -107,6 +108,16 @@ Shot list (a phone camera in daylight is enough):
 - One photo per menu item — **same angle, same distance, same surface for every
   item.** Consistency is what reads premium, not equipment
 - 3–4 atmosphere shots for About: the kitchen, hands at work, the dum pot
+
+**Interim exception (2026-09-24):** 51 of 52 menu photos are currently the
+restaurant's own Swiggy listing photos — extracted from the live listing,
+cropped and digitally enhanced (sharpened, upscaled, colour-corrected), not
+new photography and not generic stock. They're a real step up from "Photo
+pending," but they're inconsistent with each other (different angles,
+surfaces, at least one Swiggy marketing badge baked into the pixels) and
+capped in quality by a compressed phone-screenshot source. `menu.json` stays
+`"status": "placeholder"` until the shot list above replaces them — that's
+what the hard rule above still means for launch.
 
 ### Logo
 No logo yet. Plan a simple wordmark as part of the build, with a **NC TAJ /
@@ -236,15 +247,18 @@ above the fold, not buried on About.
 
 | # | Item | Owner | Target | Blocking? |
 |---|---|---|---|---|
-| 1 | Exact menu + prices | TBD | TBD | **Yes — blocks the build** |
-| 2 | Food photography (see shot list) | TBD | TBD | **Yes — blocks the build** |
-| 3 | Copy: tagline, About story, category blurbs | TBD | TBD | **Yes** — currently placeholder prose |
-| 4 | Logo — wordmark now, or launch on type only | TBD | TBD | No |
-| 5 | Google Business Profile | TBD | TBD | No |
+| 1 | Confirm menu prices — standing price or the Swiggy discount currently shown? | TBD | TBD | **Yes** — priced items ship with the current Swiggy price until confirmed |
+| 2 | Parotha's price — never appeared unobstructed in any source screenshot | TBD | TBD | **Yes** — only item still showing "Price TBC" |
+| 3 | Real food photography (see shot list) — replaces the interim Swiggy-sourced photos | TBD | TBD | **Yes — blocks launch** |
+| 4 | Copy: tagline, About story, category blurbs | TBD | TBD | **Yes** — currently placeholder prose |
+| 5 | Logo — wordmark now, or launch on type only | TBD | TBD | No |
+| 6 | Google Business Profile | TBD | TBD | No |
 
 **Done:** location, hours and both phone numbers · WhatsApp · Swiggy / Zomato /
 Magicpin listing links · FSSAI licence number · link previews (image built;
-activates when `siteUrl` is set).
+activates when `siteUrl` is set) · full 52-item menu transcribed from the live
+Swiggy listing, deduplicated, recategorised into 7 categories · interim photos
+for 51 of 52 items (see the Photography section's 2026-09-24 note).
 
 ## Deferred — after the main site is done, in this order
 

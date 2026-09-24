@@ -1,50 +1,588 @@
 {
-  "_comment": "Item names transcribed from the restaurant's own menu poster. Prices, photos and descriptions still outstanding. Set status to 'live' only when every item, price and photo is real.",
+  "_comment": "Full menu transcribed from the restaurant's live Swiggy listing (25 screenshots, 2026-09-24). Prices are Swiggy's current/discounted prices, not necessarily the standing menu price — confirm before treating as final. Photos are cropped and digitally enhanced from the same Swiggy listing photos, not new photography; status stays 'placeholder' until real photos and confirmed prices replace them. Descriptions left blank: Swiggy's own copy was truncated ('... more') in every screenshot, so nothing here is invented.",
   "status": "placeholder",
   "categories": [
     {
-      "id": "biryani",
-      "name": "Biryani",
-      "blurb": "Layered, sealed, and finished on dum.",
+      "id": "biryani-rice",
+      "name": "Biryani & Rice",
+      "blurb": "Sealed, slow-cooked and layered — plus the rice sides that go with everything.",
       "items": [
-        { "id": "chicken-biryani", "name": "Chicken Biryani", "description": "", "price": null, "veg": false, "photo": null, "available": true, "tags": [] },
-        { "id": "veg-biryani", "name": "Veg Biryani", "description": "", "price": null, "veg": true, "photo": null, "available": true, "tags": [] }
+        {
+          "id": "biryani-rice",
+          "name": "Biryani Rice",
+          "description": "",
+          "price": 85,
+          "veg": false,
+          "photo": "biryani-rice",
+          "available": true,
+          "tags": [
+            "bestseller"
+          ]
+        },
+        {
+          "id": "chicken-biryani",
+          "name": "Chicken Biryani",
+          "description": "",
+          "price": 288,
+          "veg": false,
+          "photo": "chicken-biryani",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "special-basmati-chicken-biryani",
+          "name": "Special Basmati Chicken Biryani",
+          "description": "",
+          "price": 399,
+          "veg": false,
+          "photo": "special-basmati-chicken-biryani",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "egg-biryani",
+          "name": "Egg Biryani",
+          "description": "",
+          "price": 109,
+          "veg": false,
+          "photo": "egg-biryani",
+          "available": true,
+          "tags": [
+            "bestseller"
+          ]
+        },
+        {
+          "id": "paneer-biryani",
+          "name": "Paneer Biryani",
+          "description": "",
+          "price": 299,
+          "veg": true,
+          "photo": "paneer-biryani",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "vegetable-biryani-pulao",
+          "name": "Vegetable Biryani Pulao",
+          "description": "",
+          "price": 230,
+          "veg": true,
+          "photo": "vegetable-biryani-pulao",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "egg-fried-rice",
+          "name": "Egg Fried Rice",
+          "description": "",
+          "price": 180,
+          "veg": false,
+          "photo": "egg-fried-rice",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "fried-rice",
+          "name": "Fried Rice",
+          "description": "",
+          "price": 145,
+          "veg": true,
+          "photo": "fried-rice",
+          "available": true,
+          "tags": [
+            "bestseller"
+          ]
+        },
+        {
+          "id": "lemon-rice",
+          "name": "Lemon Rice",
+          "description": "",
+          "price": 145,
+          "veg": true,
+          "photo": "lemon-rice",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "tomato-rice",
+          "name": "Tomato Rice",
+          "description": "",
+          "price": 149,
+          "veg": true,
+          "photo": "tomato-rice",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "ghee-rice",
+          "name": "Ghee Rice",
+          "description": "",
+          "price": 155,
+          "veg": true,
+          "photo": "ghee-rice",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "curd-rice",
+          "name": "Curd Rice",
+          "description": "",
+          "price": 160,
+          "veg": true,
+          "photo": "curd-rice",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "plain-rice",
+          "name": "Plain Rice",
+          "description": "",
+          "price": 99,
+          "veg": true,
+          "photo": "plain-rice",
+          "available": true,
+          "tags": [
+            "bestseller"
+          ]
+        },
+        {
+          "id": "jeera-rice",
+          "name": "Jeera Rice",
+          "description": "",
+          "price": 130,
+          "veg": true,
+          "photo": "jeera-rice",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "basmati-plain-rice",
+          "name": "Basmati Plain Rice",
+          "description": "",
+          "price": 189,
+          "veg": true,
+          "photo": "basmati-plain-rice",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "puliyogara",
+          "name": "Puliyogara",
+          "description": "",
+          "price": 250,
+          "veg": true,
+          "photo": "puliyogara",
+          "available": true,
+          "tags": []
+        }
       ]
     },
     {
-      "id": "starters",
-      "name": "Starters",
+      "id": "gravies",
+      "name": "Gravies & Curries",
+      "blurb": "The dishes that earned their place on the menu and never left.",
+      "items": [
+        {
+          "id": "butter-chicken",
+          "name": "Butter Chicken",
+          "description": "",
+          "price": 290,
+          "veg": false,
+          "photo": "butter-chicken",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "chicken-tikka-masala",
+          "name": "Chicken Tikka Masala",
+          "description": "",
+          "price": 299,
+          "veg": false,
+          "photo": "chicken-tikka-masala",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "shahi-chicken-korma-gravy",
+          "name": "Shahi Chicken Korma Gravy",
+          "description": "",
+          "price": 320,
+          "veg": false,
+          "photo": "shahi-chicken-korma-gravy",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "palak-chicken-gravy-nc-special",
+          "name": "Palak Chicken Gravy NC Special",
+          "description": "",
+          "price": 499,
+          "veg": false,
+          "photo": "palak-chicken-gravy-nc-special",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "spicy-chicken",
+          "name": "Spicy Chicken",
+          "description": "",
+          "price": 350,
+          "veg": false,
+          "photo": "spicy-chicken",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "chilli-chicken",
+          "name": "Chilli Chicken",
+          "description": "",
+          "price": 399,
+          "veg": false,
+          "photo": "chilli-chicken",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "chicken-65",
+          "name": "Chicken 65",
+          "description": "",
+          "price": 265,
+          "veg": false,
+          "photo": "chicken-65",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "chicken-kabab",
+          "name": "Chicken Kabab",
+          "description": "",
+          "price": 220,
+          "veg": false,
+          "photo": "chicken-kabab",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "paneer-tikka",
+          "name": "Paneer Tikka",
+          "description": "",
+          "price": 250,
+          "veg": true,
+          "photo": "paneer-tikka",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "palak-paneer",
+          "name": "Palak Paneer",
+          "description": "",
+          "price": 310,
+          "veg": true,
+          "photo": "palak-paneer",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "chana-masala",
+          "name": "Chana Masala",
+          "description": "",
+          "price": 199,
+          "veg": true,
+          "photo": "chana-masala",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "dal-fry",
+          "name": "Dal Fry",
+          "description": "",
+          "price": 199,
+          "veg": true,
+          "photo": "dal-fry",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "tarka-dal",
+          "name": "Tarka Dal",
+          "description": "",
+          "price": 200,
+          "veg": true,
+          "photo": "tarka-dal",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "vegetable-curry",
+          "name": "Vegetable Curry",
+          "description": "",
+          "price": 199,
+          "veg": true,
+          "photo": "vegetable-curry",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "moong-khichdi-mysore-special",
+          "name": "Moong Khichdi Mysore Special",
+          "description": "",
+          "price": 170,
+          "veg": true,
+          "photo": "moong-khichdi-mysore-special",
+          "available": true,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "id": "snacks",
+      "name": "Snacks & Starters",
       "blurb": "Off the fire and out of the fryer, straight into the box.",
       "items": [
-        { "id": "chicken-65", "name": "Chicken 65", "description": "", "price": null, "veg": false, "photo": null, "available": true, "tags": [] },
-        { "id": "chicken-kabab", "name": "Chicken Kabab", "description": "", "price": null, "veg": false, "photo": null, "available": true, "tags": [] },
-        { "id": "south-indian-kabab", "name": "South Indian Kabab", "description": "", "price": null, "veg": false, "photo": null, "available": true, "tags": [] },
-        { "id": "chilly-chicken", "name": "Chilly Chicken", "description": "", "price": null, "veg": false, "photo": null, "available": true, "tags": [] }
+        {
+          "id": "chole-bhature",
+          "name": "Chole Bhature",
+          "description": "",
+          "price": 180,
+          "veg": true,
+          "photo": "chole-bhature",
+          "available": true,
+          "tags": [
+            "bestseller"
+          ]
+        },
+        {
+          "id": "veg-mysore-pakoda",
+          "name": "Veg Mysore Pakoda",
+          "description": "",
+          "price": 150,
+          "veg": true,
+          "photo": "veg-mysore-pakoda",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "special-usmainya-salt-biscuits",
+          "name": "Special Usmainya Salt Biscuits",
+          "description": "",
+          "price": 50,
+          "veg": true,
+          "photo": "special-usmainya-salt-biscuits",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "veg-vermicelli-shavige",
+          "name": "Veg Vermicelli Shavige (Saviya)",
+          "description": "",
+          "price": 199,
+          "veg": true,
+          "photo": "veg-vermicelli-shavige",
+          "available": true,
+          "tags": []
+        }
       ]
     },
     {
-      "id": "north-indian",
-      "name": "North Indian",
-      "blurb": "The gravies, cooked the long way.",
+      "id": "egg",
+      "name": "Egg Specials",
+      "blurb": "Simple, done properly, all day long.",
       "items": [
-        { "id": "butter-chicken", "name": "Butter Chicken", "description": "", "price": null, "veg": false, "photo": null, "available": true, "tags": [] },
-        { "id": "paneer-tikka-masala", "name": "Paneer Tikka Masala", "description": "", "price": null, "veg": true, "photo": null, "available": true, "tags": [] },
-        { "id": "kadhai-paneer", "name": "Kadhai Paneer", "description": "", "price": null, "veg": true, "photo": null, "available": true, "tags": [] },
-        { "id": "dal-makhani", "name": "Dal Makhani", "description": "", "price": null, "veg": true, "photo": null, "available": true, "tags": [] },
-        { "id": "aloo-gobi", "name": "Aloo Gobi", "description": "", "price": null, "veg": true, "photo": null, "available": true, "tags": [] },
-        { "id": "chola-bhatura", "name": "Chola Bhatura", "description": "", "price": null, "veg": true, "photo": null, "available": true, "tags": [] },
-        { "id": "egg-curry", "name": "Egg Curry", "description": "", "price": null, "veg": false, "photo": null, "available": true, "tags": [] },
-        { "id": "egg-bhurji", "name": "Egg Bhurji", "description": "", "price": null, "veg": false, "photo": null, "available": true, "tags": [] }
+        {
+          "id": "boiled-egg",
+          "name": "Boiled Egg",
+          "description": "",
+          "price": 35,
+          "veg": false,
+          "photo": "boiled-egg",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "egg-bhurji",
+          "name": "Egg Bhurji",
+          "description": "",
+          "price": 155,
+          "veg": false,
+          "photo": "egg-bhurji",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "egg-omelette",
+          "name": "Egg Omelette",
+          "description": "",
+          "price": 96,
+          "veg": false,
+          "photo": "egg-omelette",
+          "available": true,
+          "tags": [
+            "bestseller"
+          ]
+        },
+        {
+          "id": "bread-omelette",
+          "name": "Bread Omelette",
+          "description": "",
+          "price": 120,
+          "veg": false,
+          "photo": "bread-omelette",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "bun-omelette",
+          "name": "Bun Omelette",
+          "description": "",
+          "price": 29,
+          "veg": false,
+          "photo": "bun-omelette",
+          "available": true,
+          "tags": []
+        }
       ]
     },
     {
-      "id": "rice-and-breads",
-      "name": "Rice & Breads",
-      "blurb": "What goes alongside, done properly.",
+      "id": "bread",
+      "name": "Roti & Bread",
+      "blurb": "Fresh off the tandoor.",
       "items": [
-        { "id": "chicken-fried-rice", "name": "Chicken Fried Rice", "description": "", "price": null, "veg": false, "photo": null, "available": true, "tags": [] },
-        { "id": "jeera-rice", "name": "Jeera Rice", "description": "", "price": null, "veg": true, "photo": null, "available": true, "tags": [] },
-        { "id": "paratha", "name": "Paratha", "description": "", "price": null, "veg": true, "photo": null, "available": true, "tags": [] }
+        {
+          "id": "chapati",
+          "name": "Chapati",
+          "description": "",
+          "price": 39,
+          "veg": true,
+          "photo": "chapati",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "parotha",
+          "name": "Parotha",
+          "description": "",
+          "price": null,
+          "veg": true,
+          "photo": null,
+          "available": true,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "id": "desserts",
+      "name": "Desserts",
+      "blurb": "Made the long way, in small batches.",
+      "items": [
+        {
+          "id": "kesar-bath",
+          "name": "Kesar Bath",
+          "description": "",
+          "price": 155,
+          "veg": true,
+          "photo": "kesar-bath",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "sheer-khurma-semiya-payasam",
+          "name": "Sheer Khurma / Semiya / Payasam",
+          "description": "",
+          "price": 187,
+          "veg": true,
+          "photo": "sheer-khurma-semiya-payasam",
+          "available": true,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "id": "drinks",
+      "name": "Coffee & Drinks",
+      "blurb": "Strong, hot, and poured all day.",
+      "items": [
+        {
+          "id": "chai",
+          "name": "Chai",
+          "description": "",
+          "price": 55,
+          "veg": true,
+          "photo": "chai",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "jaggery-tea",
+          "name": "Jaggery Tea",
+          "description": "",
+          "price": 69,
+          "veg": true,
+          "photo": "jaggery-tea",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "sugar-less-tea",
+          "name": "Sugar Less Tea",
+          "description": "",
+          "price": 66,
+          "veg": true,
+          "photo": "sugar-less-tea",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "coffee",
+          "name": "Coffee",
+          "description": "",
+          "price": 70,
+          "veg": true,
+          "photo": "coffee",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "cold-coffee",
+          "name": "Cold Coffee",
+          "description": "",
+          "price": 110,
+          "veg": true,
+          "photo": "cold-coffee",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "nimbu-pani",
+          "name": "Nimbu Pani",
+          "description": "",
+          "price": 80,
+          "veg": true,
+          "photo": "nimbu-pani",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "fresh-juice",
+          "name": "Fresh Juice",
+          "description": "",
+          "price": 70,
+          "veg": true,
+          "photo": "fresh-juice",
+          "available": true,
+          "tags": []
+        },
+        {
+          "id": "milk",
+          "name": "Milk",
+          "description": "",
+          "price": 50,
+          "veg": true,
+          "photo": "milk",
+          "available": true,
+          "tags": [
+            "bestseller"
+          ]
+        }
       ]
     }
   ]

@@ -56,6 +56,9 @@ does not break the tests.
 ## Editing the menu
 
 Everything lives in **`src/data/menu.json`**. No markup changes needed.
+`photo` is an item id, not a path — drop a `<id>.jpg` (or `.png`) into
+`src/assets/menu/` and `PhotoSlot.astro` resolves it through Astro's asset
+pipeline, which generates AVIF/WebP + `srcset` automatically at build time.
 
 ```jsonc
 {
@@ -72,7 +75,7 @@ Everything lives in **`src/data/menu.json`**. No markup changes needed.
           "description": "Shown under the name.",
           "price": 320,           // number, or null → renders "Price TBC"
           "veg": false,           // drives the veg/non-veg mark + filter
-          "photo": "/img/menu/chicken-dum-biryani.avif",  // or null
+          "photo": "chicken-dum-biryani",  // matches a file in src/assets/menu/, or null
           "available": true,      // false removes it from the site entirely
           "tags": ["bestseller"]  // "bestseller" renders a chip
         }
