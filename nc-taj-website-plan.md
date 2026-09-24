@@ -247,12 +247,15 @@ above the fold, not buried on About.
 
 | # | Item | Owner | Target | Blocking? |
 |---|---|---|---|---|
-| 1 | Confirm menu prices — standing price or the Swiggy discount currently shown? | TBD | TBD | **Yes** — priced items ship with the current Swiggy price until confirmed |
-| 2 | Parotha's price — never appeared unobstructed in any source screenshot | TBD | TBD | **Yes** — only item still showing "Price TBC" |
-| 3 | Real food photography (see shot list) — replaces the interim Swiggy-sourced photos | TBD | TBD | **Yes — blocks launch** |
-| 4 | Copy: tagline, About story, category blurbs | TBD | TBD | **Yes** — currently placeholder prose |
-| 5 | Logo — wordmark now, or launch on type only | TBD | TBD | No |
-| 6 | Google Business Profile | TBD | TBD | No |
+| 1 | Parotha's price — never appeared unobstructed in any source screenshot | TBD | TBD | **Yes** — only item still showing "Price TBC" |
+| 2 | Real food photography (see shot list) — replaces the interim Swiggy-sourced photos | TBD | TBD | **Yes — blocks launch** |
+| 3 | Copy: tagline, About story, category blurbs | TBD | TBD | **Yes** — currently placeholder prose |
+| 4 | Logo — wordmark now, or launch on type only | TBD | TBD | No |
+| 5 | Google Business Profile | TBD | TBD | No |
+
+**Decided (2026-09-24):** menu prices ship as Swiggy's current price exactly as
+shown, discounts included (e.g. Biryani Rice at ₹85 off a ₹142 MRP) — not the
+standing price. Owner's call, to be revisited later rather than held up now.
 
 **Done:** location, hours and both phone numbers · WhatsApp · Swiggy / Zomato /
 Magicpin listing links · FSSAI licence number · link previews (image built;
