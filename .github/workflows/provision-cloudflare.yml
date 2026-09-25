@@ -30,10 +30,14 @@ jobs:
       - name: Ensure D1 database exists
         id: d1
         run: |
-          # No `set -e` here on purpose: every wrangler call's output is
-          # captured and echoed BEFORE we look at its exit code, so a real
-          # failure always shows wrangler's actual error message instead of
-          # bash aborting mid-assignment on a bare `x=$(cmd)` and swallowing it.
+          # GitHub Actions runs bash steps as `bash -e {0}` by default. A
+          # bare `VAR=$(cmd 2>&1); STATUS=$?` still aborts on the assignment
+          # itself the instant `cmd` fails — joining with `;` doesn't shield
+          # it from errexit, only `&&`/`||`/an `if` condition/`set +e` does.
+          # (First attempt at this fix used exactly that `;` pattern and
+          # still lost the output; `set +e` is the actual fix.) Turned off
+          # here since every call below checks its own exit status by hand.
+          set +e
           UUID_RE='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 
           LIST_OUT=$(npx wrangler d1 list --json 2>&1); LIST_STATUS=$?
@@ -65,6 +69,7 @@ jobs:
 
       - name: Ensure R2 bucket exists
         run: |
+          set +e
           OUT=$(npx wrangler r2 bucket create nctaj-menu-images 2>&1); STATUS=$?
           echo "$OUT"
           if [ $STATUS -ne 0 ] && ! echo "$OUT" | grep -qi "already exists"; then
@@ -75,6 +80,7 @@ jobs:
       - name: Ensure KV namespace exists
         id: kv
         run: |
+          set +e
           UUID_RE='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 
           LIST_OUT=$(npx wrangler kv namespace list --json 2>&1); LIST_STATUS=$?
