@@ -25,6 +25,15 @@ const current = (href) => (path === href ? 'page' : undefined);
       </a>
     </nav>
 
+    <button class="cart-toggle" id="cart-toggle" type="button" aria-expanded="false" aria-controls="cart-drawer" aria-label="Cart">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 4h2l2.4 12.2a2 2 0 0 0 2 1.6h8.2a2 2 0 0 0 2-1.6L21 8H6" />
+        <circle cx="9" cy="21" r="1.4" />
+        <circle cx="18" cy="21" r="1.4" />
+      </svg>
+      <span class="cart-badge" id="cart-badge" hidden>0</span>
+    </button>
+
     <button class="burger" type="button" aria-expanded="false" aria-controls="mobile-nav" aria-label="Menu">
       <span></span><span></span><span></span>
     </button>
@@ -38,3 +47,244 @@ const current = (href) => (path === href ? 'page' : undefined);
     </div>
   </div>
 </header>
+
+<!--
+  Deliberately siblings of <header>, not nested inside it: `.header` picks
+  up `backdrop-filter`/`transform` from its own scroll/motion CSS, and
+  either one turns an ancestor into a containing block for `position:
+  fixed` descendants — which would size this backdrop to the header's own
+  ~76px strip instead of the viewport. Living outside it sidesteps that
+  regardless of what header's CSS does later.
+-->
+<div class="cart-backdrop" id="cart-backdrop" hidden></div>
+<aside class="cart-drawer" id="cart-drawer" data-open="false" data-whatsapp={site.contact.whatsapp} aria-label="Your order" aria-hidden="true">
+  <div class="cart-drawer__head">
+    <h2>Your order</h2>
+    <button type="button" class="cart-drawer__close" id="cart-close" aria-label="Close cart">✕</button>
+  </div>
+
+  <ul class="cart-drawer__list" id="cart-items"></ul>
+  <p class="cart-drawer__empty" id="cart-empty">Nothing in your cart yet — add something from the menu.</p>
+
+  <div class="cart-drawer__foot">
+    <div class="cart-drawer__total">
+      <span>Total</span>
+      <strong id="cart-total">₹0</strong>
+    </div>
+    <a class="btn btn--primary btn--block" id="cart-whatsapp" href="#" target="_blank" rel="noopener" data-track="cart_whatsapp_click">
+      Order via WhatsApp
+    </a>
+    <button type="button" class="cart-drawer__clear" id="cart-clear">Clear cart</button>
+  </div>
+</aside>
+
+  <script is:inline>
+  // `transition:persist` on Header doesn't actually keep a single DOM
+  // instance alive across every navigation in this app (only the rendered
+  // markup count stays stable, not the node identity — confirmed by
+  // tagging a node and watching the tag vanish after a soft nav). So this
+  // never assumes the header it binds to today is the same one tomorrow:
+  // every element lookup happens fresh at the moment it's needed, all
+  // clicks are handled through delegation on `document` (which never gets
+  // replaced), and `renderDrawer`/`renderItemControls` repaint from
+  // localStorage on every `astro:page-load`, not just once at startup.
+  (() => {
+    if (window.__nctajCart) return;
+    window.__nctajCart = true;
+
+    const CART_KEY = 'nctaj_cart';
+
+    const readCart = () => {
+      try { return JSON.parse(localStorage.getItem(CART_KEY)) || {}; } catch { return {}; }
+    };
+    const writeCart = (cart) => {
+      try { localStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch {}
+      document.dispatchEvent(new CustomEvent('cart:change'));
+    };
+    const cartCount = (cart) => Object.values(cart).reduce((n, i) => n + i.qty, 0);
+    const cartTotal = (cart) => Object.values(cart).reduce((n, i) => n + i.qty * i.price, 0);
+
+    function addItem(id, name, price) {
+      const cart = readCart();
+      cart[id] = cart[id] ? { ...cart[id], qty: cart[id].qty + 1 } : { name, price, qty: 1 };
+      writeCart(cart);
+    }
+    function changeQty(id, delta) {
+      const cart = readCart();
+      if (!cart[id]) return;
+      const qty = cart[id].qty + delta;
+      if (qty <= 0) delete cart[id];
+      else cart[id] = { ...cart[id], qty };
+      writeCart(cart);
+    }
+    function clearCart() {
+      writeCart({});
+    }
+
+    function buildWhatsAppUrl(cart, phone) {
+      const lines = Object.values(cart).map((i) => `${i.qty}x ${i.name} — ₹${i.qty * i.price}`);
+      const text = [
+        "Hi! I'd like to order this from the NC Taj website:",
+        '',
+        ...lines,
+        '',
+        `Total: ₹${cartTotal(cart)}`,
+        '',
+        'Please confirm and let me know how to pay / pick up.',
+      ].join('\n');
+      return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+    }
+
+    function openDrawer() {
+      const drawer = document.getElementById('cart-drawer');
+      const backdrop = document.getElementById('cart-backdrop');
+      drawer?.setAttribute('data-open', 'true');
+      drawer?.setAttribute('aria-hidden', 'false');
+      if (backdrop) backdrop.hidden = false;
+      document.getElementById('cart-toggle')?.setAttribute('aria-expanded', 'true');
+    }
+    function closeDrawer() {
+      const drawer = document.getElementById('cart-drawer');
+      const backdrop = document.getElementById('cart-backdrop');
+      drawer?.setAttribute('data-open', 'false');
+      drawer?.setAttribute('aria-hidden', 'true');
+      if (backdrop) backdrop.hidden = true;
+      document.getElementById('cart-toggle')?.setAttribute('aria-expanded', 'false');
+    }
+    function isDrawerOpen() {
+      return document.getElementById('cart-drawer')?.getAttribute('data-open') === 'true';
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isDrawerOpen()) closeDrawer();
+    });
+
+    function stepper(id, qty, label) {
+      const wrap = document.createElement('span');
+      wrap.className = 'cart-line__stepper';
+      const dec = document.createElement('button');
+      dec.type = 'button';
+      dec.textContent = '−';
+      dec.dataset.cartDec = id;
+      dec.setAttribute('aria-label', `Remove one ${label}`);
+      const n = document.createElement('span');
+      n.textContent = String(qty);
+      const inc = document.createElement('button');
+      inc.type = 'button';
+      inc.textContent = '+';
+      inc.dataset.cartInc = id;
+      inc.setAttribute('aria-label', `Add one more ${label}`);
+      wrap.append(dec, n, inc);
+      return wrap;
+    }
+
+    function renderDrawer() {
+      const drawer = document.getElementById('cart-drawer');
+      const badge = document.getElementById('cart-badge');
+      const list = document.getElementById('cart-items');
+      const empty = document.getElementById('cart-empty');
+      const totalEl = document.getElementById('cart-total');
+      const waLink = document.getElementById('cart-whatsapp');
+      const whatsapp = drawer?.dataset.whatsapp ?? '';
+
+      const cart = readCart();
+      const entries = Object.entries(cart);
+      const count = cartCount(cart);
+
+      if (badge) {
+        badge.textContent = String(count);
+        badge.hidden = count === 0;
+      }
+      if (!list) return;
+
+      list.textContent = '';
+      entries.forEach(([id, item]) => {
+        const li = document.createElement('li');
+        li.className = 'cart-line';
+        const name = document.createElement('span');
+        name.className = 'cart-line__name';
+        name.textContent = item.name;
+        const price = document.createElement('span');
+        price.className = 'cart-line__price';
+        price.textContent = `₹${item.qty * item.price}`;
+        li.append(name, stepper(id, item.qty, item.name), price);
+        list.appendChild(li);
+      });
+
+      if (empty) empty.hidden = entries.length > 0;
+      if (totalEl) totalEl.textContent = `₹${cartTotal(cart)}`;
+      if (waLink) {
+        waLink.href = entries.length ? buildWhatsAppUrl(cart, whatsapp) : '#';
+        waLink.setAttribute('aria-disabled', String(entries.length === 0));
+      }
+    }
+
+    // `.item` cards live in each page's own swapped-in content, so their
+    // Add/stepper control needs repainting on every navigation too — same
+    // as the drawer, just a different chunk of DOM.
+    function renderItemControls() {
+      const cart = readCart();
+      document.querySelectorAll('[data-cart-control]').forEach((el) => {
+        const id = el.dataset.cartControl;
+        const name = el.dataset.cartName ?? '';
+        const qty = cart[id]?.qty || 0;
+        el.textContent = '';
+        if (qty > 0) {
+          el.appendChild(stepper(id, qty, name));
+        } else {
+          const add = document.createElement('button');
+          add.type = 'button';
+          add.className = 'cart-ctrl__add';
+          add.textContent = 'Add to cart';
+          add.dataset.cartAdd = id;
+          el.appendChild(add);
+        }
+      });
+    }
+
+    // Every click that matters here is handled through delegation on
+    // `document`, which is never replaced by a navigation — so this needs
+    // binding exactly once, regardless of how many times the header itself
+    // gets re-rendered underneath it.
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('#cart-toggle')) {
+        (isDrawerOpen() ? closeDrawer : openDrawer)();
+        return;
+      }
+      if (e.target.closest('#cart-close') || e.target.closest('#cart-backdrop')) {
+        closeDrawer();
+        return;
+      }
+      if (e.target.closest('#cart-clear')) {
+        clearCart();
+        return;
+      }
+      const addBtn = e.target.closest('[data-cart-add]');
+      if (addBtn) {
+        const control = addBtn.closest('[data-cart-control]');
+        if (control) addItem(control.dataset.cartControl, control.dataset.cartName, Number(control.dataset.cartPrice));
+        return;
+      }
+      const inc = e.target.closest('[data-cart-inc]');
+      if (inc) { changeQty(inc.dataset.cartInc, 1); return; }
+      const dec = e.target.closest('[data-cart-dec]');
+      if (dec) { changeQty(dec.dataset.cartDec, -1); return; }
+    });
+
+    document.addEventListener('cart:change', () => {
+      renderDrawer();
+      renderItemControls();
+    });
+    // Fires on the very first load and again after every soft navigation —
+    // repaints whatever header/item DOM exists right now from localStorage,
+    // so a freshly-rendered (non-persisted) header never shows stale state.
+    document.addEventListener('astro:page-load', () => {
+      renderDrawer();
+      renderItemControls();
+    });
+
+    const init = () => { renderDrawer(); renderItemControls(); };
+    if (document.readyState !== 'loading') init();
+    else document.addEventListener('DOMContentLoaded', init, { once: true });
+  })();
+</script>

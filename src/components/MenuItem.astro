@@ -19,5 +19,10 @@ const hasPrice = typeof item.price === 'number';
         : <span class="item__price item__price--tbc">Price TBC</span>}
     </div>
     {item.description && <p class="item__desc">{item.description}</p>}
+    {hasPrice && (
+      <div class="cart-ctrl" data-cart-control={item.id} data-cart-name={item.name} data-cart-price={item.price}>
+        <button type="button" class="cart-ctrl__add" data-cart-add={item.id}>Add to cart</button>
+      </div>
+    )}
   </div>
 </article>
