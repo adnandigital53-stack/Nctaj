@@ -1,0 +1,106 @@
+name: Provision Cloudflare resources
+
+# One-time (re-runnable) setup job: creates the real D1 database, R2 bucket
+# and KV namespace, wires their IDs into wrangler.jsonc, runs migrations and
+# seeds the menu, and sets the admin password secret. Runs on GitHub's
+# infrastructure because the D1/R2/KV bindings only matter for wrangler talking
+# to Cloudflare's API, which some environments (this one included) block for
+# agent sessions. Never deploys the Worker itself — that stays a deliberate,
+# separate step.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - name: Ensure D1 database exists
+        id: d1
+        run: |
+          set -e
+          UUID_RE='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+          EXISTING=$(npx wrangler d1 list --json 2>/dev/null | node -e "
+            let s=''; process.stdin.on('data',d=>s+=d).on('end',()=>{
+              try { const list = JSON.parse(s); const m = list.find(d => d.name === 'nctaj-menu'); console.log(m ? m.uuid : ''); }
+              catch { console.log(''); }
+            });" || true)
+          if [ -n "$EXISTING" ]; then
+            echo "D1 database already exists: $EXISTING"
+            echo "id=$EXISTING" >> "$GITHUB_OUTPUT"
+          else
+            OUT=$(npx wrangler d1 create nctaj-menu 2>&1)
+            echo "$OUT"
+            ID=$(echo "$OUT" | grep -oE "$UUID_RE" | head -1)
+            if [ -z "$ID" ]; then echo "Could not extract database_id from create output" >&2; exit 1; fi
+            echo "id=$ID" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Ensure R2 bucket exists
+        run: |
+          npx wrangler r2 bucket create nctaj-menu-images 2>&1 || echo "Bucket probably already exists — continuing."
+
+      - name: Ensure KV namespace exists
+        id: kv
+        run: |
+          set -e
+          UUID_RE='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+          EXISTING=$(npx wrangler kv namespace list 2>/dev/null | node -e "
+            let s=''; process.stdin.on('data',d=>s+=d).on('end',()=>{
+              try { const list = JSON.parse(s); const m = list.find(n => (n.title||'').includes('SESSION')); console.log(m ? m.id : ''); }
+              catch { console.log(''); }
+            });" || true)
+          if [ -n "$EXISTING" ]; then
+            echo "KV namespace already exists: $EXISTING"
+            echo "id=$EXISTING" >> "$GITHUB_OUTPUT"
+          else
+            OUT=$(npx wrangler kv namespace create SESSION 2>&1)
+            echo "$OUT"
+            ID=$(echo "$OUT" | grep -oE "$UUID_RE" | head -1)
+            if [ -z "$ID" ]; then echo "Could not extract namespace id from create output" >&2; exit 1; fi
+            echo "id=$ID" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Wire real IDs into wrangler.jsonc
+        run: |
+          node -e "
+            const fs = require('fs');
+            let text = fs.readFileSync('wrangler.jsonc', 'utf8');
+            text = text.replace(/\"database_id\":\s*\"[^\"]*\"/, '\"database_id\": \"${{ steps.d1.outputs.id }}\"');
+            text = text.replace(/\"id\":\s*\"local-dev-placeholder\"/, '\"id\": \"${{ steps.kv.outputs.id }}\"');
+            fs.writeFileSync('wrangler.jsonc', text);
+          "
+          cat wrangler.jsonc
+
+      - name: Commit updated wrangler.jsonc
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add wrangler.jsonc
+          if git diff --cached --quiet; then
+            echo "No changes to commit (IDs already matched)."
+          else
+            git commit -m "Wire real Cloudflare resource IDs into wrangler.jsonc"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
+
+      - name: Run migrations against the real D1 database
+        run: npm run db:migrate:remote
+
+      - name: Seed the menu (items + photos) into the real D1/R2
+        run: npm run db:seed:remote
+
+      - name: Set the admin password secret
+        run: echo "${{ secrets.ADMIN_PASSWORD }}" | npx wrangler secret put ADMIN_PASSWORD
