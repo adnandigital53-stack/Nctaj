@@ -12,12 +12,20 @@
     "check": "npm run check:contrast && npm run check:behaviour",
     "check:contrast": "node scripts/check-contrast.mjs",
     "check:behaviour": "node scripts/check-behaviour.mjs",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "npm run build && wrangler deploy -c dist/server/wrangler.json",
+    "cf:types": "wrangler types",
+    "db:migrate:local": "wrangler d1 migrations apply nctaj-menu --local",
+    "db:migrate:remote": "wrangler d1 migrations apply nctaj-menu --remote",
+    "db:seed:local": "node scripts/seed-db.mjs --local",
+    "db:seed:remote": "node scripts/seed-db.mjs --remote"
   },
   "dependencies": {
+    "@astrojs/cloudflare": "^14.3.3",
     "astro": "^7.3.3"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260925.1",
+    "@types/node": "^26.6.2",
     "playwright": "^1.63.0",
     "wrangler": "^4.136.0"
   },

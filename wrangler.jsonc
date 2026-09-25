@@ -1,14 +1,46 @@
 {
-  // Static-assets-only Worker: no `main` entry point, so Cloudflare just
-  // serves ./dist from the edge. When the cart arrives, add a `main` script
-  // here and the same Worker serves the site AND the API on one domain.
+  // Full Worker now: Astro's Cloudflare adapter builds a server entry that
+  // reads/writes D1 for menu data and R2 for photos, with static assets
+  // (CSS/JS/fonts/seed photos) served alongside it from dist/client.
+  //
+  // No "main" here on purpose. The adapter defaults it to the bare specifier
+  // "@astrojs/cloudflare/entrypoints/server", which Vite resolves as a
+  // module rather than checking it exists on disk up front — a literal path
+  // like "./dist/server/entry.mjs" would make the Cloudflare Vite plugin
+  // fail every `astro build` on a clean checkout, since it validates that
+  // path before the build has produced it. The adapter writes a real,
+  // deployable wrangler.json (with main pointing at the actual built entry)
+  // into dist/server/ at the end of the build — `npm run deploy` uses that
+  // one, not this file, for `wrangler deploy`.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "nc-taj",
   "compatibility_date": "2026-09-21",
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
-    "directory": "./dist",
-    // Astro builds /menu/index.html; this serves it at /menu without a redirect.
+    "directory": "./dist/client",
+    "binding": "ASSETS",
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "404-page"
-  }
+  },
+
+  // --- D1: menu items + categories, editable from /admin -----------------
+  // Placeholder database_id — `astro dev` / `wrangler dev` simulate this
+  // locally with no real Cloudflare resource needed. Swap in the real id
+  // (from `wrangler d1 create nctaj-menu`) once ready to deploy for real;
+  // see MIGRATIONS.md.
+  "d1_databases": [
+    { "binding": "DB", "database_name": "nctaj-menu", "database_id": "local-dev-placeholder" }
+  ],
+
+  // --- R2: admin-uploaded and seed menu photos ----------------------------
+  "r2_buckets": [
+    { "binding": "MENU_IMAGES", "bucket_name": "nctaj-menu-images" }
+  ],
+
+  // Astro's own session helper wants a KV namespace by default; unused here
+  // (auth is a signed cookie, not Astro's session API) but harmless to keep —
+  // free tier, no setup cost. Same placeholder-id-for-local-dev pattern.
+  "kv_namespaces": [
+    { "binding": "SESSION", "id": "local-dev-placeholder" }
+  ]
 }

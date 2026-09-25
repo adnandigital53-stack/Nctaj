@@ -1,0 +1,120 @@
+---
+export const prerender = false;
+import { env } from 'cloudflare:workers';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getAllItemsForAdmin, deleteItem, setMenuStatus, getMenuStatus } from '../../lib/menu-db';
+
+const db = env.DB;
+let flash: { kind: 'ok' | 'error'; text: string } | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = String(form.get('_action') ?? '');
+
+  if (action === 'delete') {
+    const id = String(form.get('id') ?? '');
+    await deleteItem(db, id);
+    flash = { kind: 'ok', text: `Deleted "${id}".` };
+  } else if (action === 'toggle-available') {
+    const id = String(form.get('id') ?? '');
+    const makeAvailable = form.get('available') === '1';
+    await db.prepare('UPDATE items SET available = ? WHERE id = ?').bind(makeAvailable ? 1 : 0, id).run();
+    flash = { kind: 'ok', text: makeAvailable ? `"${id}" is visible again.` : `"${id}" hidden from the site.` };
+  } else if (action === 'set-status') {
+    const status = form.get('status') === 'live' ? 'live' : 'placeholder';
+    await setMenuStatus(db, status);
+    flash = {
+      kind: 'ok',
+      text: status === 'live' ? 'Site is live — the preview banner is off.' : 'Back to placeholder — the preview banner is on.',
+    };
+  }
+}
+
+const [items, menuStatus] = await Promise.all([getAllItemsForAdmin(db), getMenuStatus(db)]);
+
+const byCategory = new Map<string, typeof items>();
+for (const item of items) {
+  const list = byCategory.get(item.category_name) ?? [];
+  list.push(item);
+  byCategory.set(item.category_name, list);
+}
+
+const inr = (n: number | null) => (n == null ? 'TBC' : `₹${n}`);
+---
+<AdminLayout title="Dashboard">
+  <h1>Menu</h1>
+  <p class="sub">{items.length} items. Changes here show up on the live site immediately — no rebuild.</p>
+
+  {flash && <div class={`flash flash--${flash.kind}`}>{flash.text}</div>}
+
+  <div class="card" style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+    <div class="status-toggle">
+      <span class={`pill ${menuStatus === 'live' ? 'pill--veg' : 'pill--off'}`}>{menuStatus === 'live' ? 'LIVE' : 'PLACEHOLDER'}</span>
+      <span style="color: var(--cream-muted);">
+        {menuStatus === 'live'
+          ? 'The site shows real prices and no banner.'
+          : 'The site shows "Price TBC" style placeholders where the price is null, and an orange preview banner on every page.'}
+      </span>
+    </div>
+    <form method="POST">
+      <input type="hidden" name="_action" value="set-status" />
+      <input type="hidden" name="status" value={menuStatus === 'live' ? 'placeholder' : 'live'} />
+      <button type="submit" class={menuStatus === 'live' ? 'btn' : 'btn btn--primary'}>
+        {menuStatus === 'live' ? 'Revert to placeholder' : 'Go live'}
+      </button>
+    </form>
+  </div>
+
+  {[...byCategory.entries()].map(([catName, catItems]) => (
+    <Fragment>
+      <h2 class="cat-heading">{catName}</h2>
+      <div class="card" style="padding: 0; overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>Name</th>
+              <th>Price</th>
+              <th>Veg</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {catItems.map((item) => (
+              <tr>
+                <td>
+                  {item.photo_key ? (
+                    <img class="thumb" src={`/uploads/${item.photo_key}`} alt="" />
+                  ) : (
+                    <span class="thumb"></span>
+                  )}
+                </td>
+                <td>
+                  {item.name}
+                  {!!item.bestseller && <span class="pill" style="background: rgba(232,163,61,.15); color: var(--saffron); margin-left: .4rem;">★</span>}
+                </td>
+                <td>{inr(item.price)}</td>
+                <td><span class={`pill ${item.veg ? 'pill--veg' : 'pill--nonveg'}`}>{item.veg ? 'Veg' : 'Non-veg'}</span></td>
+                <td>
+                  <span class={`pill ${item.available ? 'pill--veg' : 'pill--off'}`}>{item.available ? 'Visible' : 'Hidden'}</span>
+                </td>
+                <td style="white-space: nowrap; display: flex; gap: .4rem;">
+                  <a class="btn" style="min-height:32px; padding:0 .7rem; font-size:.8rem;" href={`/admin/items/${item.id}`}>Edit</a>
+                  <form method="POST" style="display:inline;">
+                    <input type="hidden" name="_action" value="toggle-available" />
+                    <input type="hidden" name="id" value={item.id} />
+                    <input type="hidden" name="available" value={item.available ? '0' : '1'} />
+                    <button type="submit" class="btn" style="min-height:32px; padding:0 .7rem; font-size:.8rem;">
+                      {item.available ? 'Hide' : 'Show'}
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Fragment>
+  ))}
+</AdminLayout>

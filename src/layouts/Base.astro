@@ -1,12 +1,20 @@
 ---
+import { env } from 'cloudflare:workers';
 import '../styles/global.css';
 import site from '../data/site.json';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import OrderBar from '../components/OrderBar.astro';
 import { ClientRouter } from 'astro:transitions';
+import { getMenuStatus } from '../lib/menu-db';
+
+// No `prerender` export here — that flag only does anything in a page file
+// under src/pages/, not a layout component. Every page stays dynamic (the
+// output:'server' default) precisely because this layout, used by all of
+// them, needs a live D1 read for the placeholder/live banner.
 
 const { title, description = site.description, path = '/' } = Astro.props;
+const isPreview = (await getMenuStatus(env.DB)) !== 'live';
 const fullTitle = title ? `${title} — ${site.name}` : `${site.name} — ${site.tagline}`;
 const ga4 = site.analytics.ga4MeasurementId;
 
@@ -76,7 +84,7 @@ const ogImage = base ? `${base}/og.jpg` : null;
 
   <body>
     <div class="progress" transition:persist></div>
-    <Header path={path} transition:persist />
+    <Header path={path} isPreview={isPreview} transition:persist />
 
     <main id="main">
       <slot />

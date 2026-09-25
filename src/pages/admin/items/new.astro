@@ -1,0 +1,143 @@
+---
+export const prerender = false;
+import { env } from 'cloudflare:workers';
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { getCategories, createItem, slugifyUnique } from '../../../lib/menu-db';
+
+const db = env.DB;
+let error: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const name = String(form.get('name') ?? '').trim();
+  const categoryId = String(form.get('categoryId') ?? '');
+  const priceRaw = String(form.get('price') ?? '').trim();
+  const price = priceRaw === '' ? null : Number(priceRaw);
+  const description = String(form.get('description') ?? '').trim();
+  const veg = form.get('veg') === '1';
+  const bestseller = form.get('bestseller') === '1';
+  const photo = form.get('photo') as File | null;
+
+  if (!name) {
+    error = 'Name is required.';
+  } else if (!categoryId) {
+    error = 'Pick a category.';
+  } else if (priceRaw !== '' && (!Number.isFinite(price) || price! < 0)) {
+    error = 'Price has to be a positive number, or left blank for "Price TBC".';
+  } else {
+    const id = await slugifyUnique(db, name);
+    let photoKey: string | null = null;
+
+    if (photo && photo.size > 0) {
+      if (photo.size > 8 * 1024 * 1024) {
+        error = 'That photo is over 8MB even after compression — try a different one.';
+      } else {
+        photoKey = `menu/${id}-${Date.now()}.jpg`;
+        await env.MENU_IMAGES.put(photoKey, await photo.arrayBuffer(), {
+          httpMetadata: { contentType: photo.type || 'image/jpeg' },
+        });
+      }
+    }
+
+    if (!error) {
+      await createItem(db, { id, categoryId, name, description, price, veg, bestseller, available: true }, photoKey);
+      return Astro.redirect('/admin?added=' + encodeURIComponent(id));
+    }
+  }
+}
+
+const categories = await getCategories(db);
+---
+<AdminLayout title="Add item">
+  <h1>Add a menu item</h1>
+  <p class="sub">Shows up on the site the moment you save — no rebuild, no redeploy.</p>
+
+  {error && <div class="flash flash--error">{error}</div>}
+
+  <form method="POST" enctype="multipart/form-data" class="card" id="item-form">
+    <div class="field">
+      <label for="name">Name</label>
+      <input type="text" id="name" name="name" required maxlength="80" />
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="categoryId">Category</label>
+        <select id="categoryId" name="categoryId" required>
+          {categories.map((c) => <option value={c.id}>{c.name}</option>)}
+        </select>
+      </div>
+      <div class="field">
+        <label for="price">Price (₹)</label>
+        <input type="number" id="price" name="price" min="0" step="1" placeholder="Leave blank for Price TBC" />
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="description">Description <span style="opacity:.6;">(optional, shown under the name)</span></label>
+      <textarea id="description" name="description" rows="2" maxlength="200"></textarea>
+    </div>
+
+    <div class="row" style="margin-bottom: 1.1rem;">
+      <label class="check"><input type="checkbox" name="veg" value="1" /> Vegetarian</label>
+      <label class="check"><input type="checkbox" name="bestseller" value="1" /> Bestseller</label>
+    </div>
+
+    <div class="field">
+      <label for="photo">Photo <span style="opacity:.6;">(optional — compressed in your browser before upload)</span></label>
+      <input type="file" id="photo" name="photo" accept="image/*" />
+      <p id="photo-status" style="font-size:.8rem; color:var(--cream-muted); margin:.4rem 0 0;"></p>
+    </div>
+
+    <button type="submit" class="btn btn--primary" style="margin-top:.5rem;">Add item</button>
+    <a href="/admin" class="btn" style="margin-top:.5rem; margin-left:.5rem;">Cancel</a>
+  </form>
+
+  <script>
+    // Resize to at most 1280px on the long edge and re-encode as JPEG q0.82
+    // before the form ever submits — a phone photo can be 4-8MB raw, and
+    // none of that needs to survive into R2.
+    const input = document.getElementById('photo');
+    const status = document.getElementById('photo-status');
+    const form = document.getElementById('item-form');
+
+    async function compress(file) {
+      const img = await new Promise((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.onerror = reject;
+        i.src = URL.createObjectURL(file);
+      });
+      const scale = Math.min(1, 1280 / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.82));
+      return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+    }
+
+    let compressed = null;
+    input?.addEventListener('change', async () => {
+      const file = input.files?.[0];
+      if (!file) { compressed = null; status.textContent = ''; return; }
+      status.textContent = 'Compressing…';
+      try {
+        compressed = await compress(file);
+        status.textContent = `${(file.size / 1024).toFixed(0)}KB → ${(compressed.size / 1024).toFixed(0)}KB`;
+      } catch {
+        compressed = null;
+        status.textContent = 'Could not read that image — uploading it as-is.';
+      }
+    });
+
+    form?.addEventListener('submit', (e) => {
+      if (!compressed) return; // no photo chosen, or compression failed — submit the original
+      e.preventDefault();
+      const dt = new DataTransfer();
+      dt.items.add(compressed);
+      input.files = dt.files;
+      form.submit();
+    });
+  </script>
+</AdminLayout>

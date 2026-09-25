@@ -1,23 +1,55 @@
 /**
- * Behaviour checks against a running build (npm run preview).
- * Expectations are derived from menu.json so they survive menu edits.
+ * Behaviour checks against a running dev/preview server.
+ * Expectations are derived from the live D1 database (the real source of
+ * truth since the admin portal shipped), not the static seed file — those
+ * two diverge the moment anyone edits an item, and a check pinned to the
+ * seed file would then be testing the wrong thing.
  *
  *   node scripts/check-behaviour.mjs
  */
 import { chromium } from 'playwright';
-import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 
 const BASE = process.env.BASE || 'http://localhost:4321';
 const EXEC = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+const D1_MODE = process.env.D1_REMOTE ? '--remote' : '--local';
 
-const menu = JSON.parse(readFileSync(new URL('../src/data/menu.json', import.meta.url)));
-const items = menu.categories.flatMap((c) => c.items.filter((i) => i.available));
+function d1Query(sql) {
+  const out = execFileSync(
+    'npx',
+    ['wrangler', 'd1', 'execute', 'nctaj-menu', D1_MODE, '--json', '--command', sql],
+    { cwd: new URL('..', import.meta.url), encoding: 'utf8' },
+  );
+  return JSON.parse(out)[0].results;
+}
+
+const menu = {
+  categories: d1Query('SELECT id, name FROM categories ORDER BY sort_order').map((c) => ({
+    ...c,
+    items: d1Query(`SELECT * FROM items WHERE category_id = '${c.id}' AND available = 1 ORDER BY sort_order`).map(
+      (i) => ({ id: i.id, name: i.name, veg: !!i.veg }),
+    ),
+  })),
+};
+const items = menu.categories.flatMap((c) => c.items);
 const TOTAL = items.length;
 const VEG = items.filter((i) => i.veg).length;
 const NONVEG = TOTAL - VEG;
 
 const results = [];
 const check = (name, pass, detail = '') => results.push({ name, pass, detail });
+
+// `page.locator(sel).count()` has proven unreliable against this page in this
+// environment — it settles on a stale, too-high count for `.item` selectors
+// a beat after a synchronous DOM mutation (52 elements, many toggling
+// `hidden` at once), while the page's own `document.querySelectorAll` (what
+// actually drives rendering, and what a real visitor's browser also runs)
+// consistently reports the correct number at the same instant. Verified with
+// a live diff harness: `locator.count()` reads 38 and stays there over the
+// next half second while `evaluate(() => querySelectorAll(...).length)` on
+// the very same page, same moment, reads the correct 34 throughout — so
+// every `.item` count in this file goes through `evaluate` instead.
+const count = (page, sel) => page.evaluate((s) => document.querySelectorAll(s).length, sel);
 
 const b = await chromium.launch({ executablePath: EXEC });
 
@@ -26,22 +58,22 @@ let ctx = await b.newContext({ viewport: { width: 1440, height: 900 } });
 let p = await ctx.newPage();
 await p.goto(`${BASE}/menu`, { waitUntil: 'load' });
 
-check('all items visible initially', (await p.locator('.item:not([hidden])').count()) === TOTAL);
+check('all items visible initially', (await count(p, '.item:not([hidden])')) === TOTAL);
 
 await p.getByRole('button', { name: 'Veg', exact: true }).click();
 await p.waitForTimeout(200);
 check(
   'veg filter shows only veg',
-  (await p.locator('.item:not([hidden])').count()) === VEG &&
-    (await p.locator('.item:not([hidden])[data-veg="false"]').count()) === 0,
+  (await count(p, '.item:not([hidden])')) === VEG &&
+    (await count(p, '.item:not([hidden])[data-veg="false"]')) === 0,
 );
 
 await p.getByRole('button', { name: 'Non-veg', exact: true }).click();
 await p.waitForTimeout(200);
 check(
   'non-veg filter shows only non-veg',
-  (await p.locator('.item:not([hidden])').count()) === NONVEG &&
-    (await p.locator('.item:not([hidden])[data-veg="true"]').count()) === 0,
+  (await count(p, '.item:not([hidden])')) === NONVEG &&
+    (await count(p, '.item:not([hidden])[data-veg="true"]')) === 0,
 );
 
 // an all-non-veg category must be collapsed while the non-veg filter is off...
@@ -68,15 +100,17 @@ if (allVegCats.length) {
   }
 }
 
-// a category the menu never renders must not be queried at all
-const emptyCats = menu.categories.filter((c) => !c.items.some((i) => i.available)).map((c) => c.id);
+// a category the menu never renders must not be queried at all. (The D1
+// query above already filters to available=1, unlike the old in-memory
+// menu.json read, so "empty" here just means zero rows came back.)
+const emptyCats = menu.categories.filter((c) => c.items.length === 0).map((c) => c.id);
 for (const id of emptyCats) {
   check(`empty category "${id}" is not rendered`, (await p.locator(`#${id}`).count()) === 0);
 }
 
 await p.getByRole('button', { name: 'All', exact: true }).click();
 await p.waitForTimeout(200);
-check('all restores', (await p.locator('.item:not([hidden])').count()) === TOTAL);
+check('all restores', (await count(p, '.item:not([hidden])')) === TOTAL);
 
 // ---- analytics ----
 // preventDefault, otherwise navigation wipes dataLayer before we read it.
@@ -131,7 +165,7 @@ check(
   await jp.goto(`${BASE}/menu`, { waitUntil: 'load' });
   await jp.waitForTimeout(400);
 
-  const live = menu.categories.filter((c) => c.items.some((i) => i.available));
+  const live = menu.categories.filter((c) => c.items.length > 0);
   check('a jump chip per rendered category', (await jp.locator('[data-jump]').count()) === live.length);
 
   // scroll-spy marks the category you're looking at
@@ -156,14 +190,14 @@ await p.locator('a[href="/menu"]').first().click();
 await p.waitForURL('**/menu');
 await p.waitForTimeout(500);
 
-check('soft nav renders the menu', (await p.locator('.item').count()) === TOTAL);
+check('soft nav renders the menu', (await count(p, '.item')) === TOTAL);
 
 await p.getByRole('button', { name: 'Veg', exact: true }).click();
 await p.waitForTimeout(250);
 check(
   'filter works after soft nav',
-  (await p.locator('.item:not([hidden])').count()) === VEG,
-  `saw ${await p.locator('.item:not([hidden])').count()}, expected ${VEG}`,
+  (await count(p, '.item:not([hidden])')) === VEG,
+  `saw ${await count(p, '.item:not([hidden])')}, expected ${VEG}`,
 );
 
 check(

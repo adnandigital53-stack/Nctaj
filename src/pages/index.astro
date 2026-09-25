@@ -1,11 +1,15 @@
 ---
+import { env } from 'cloudflare:workers';
 import Base from '../layouts/Base.astro';
 import AggregatorStrip from '../components/AggregatorStrip.astro';
 import OpenStatus from '../components/OpenStatus.astro';
 import SplitText from '../components/SplitText.astro';
-import menu from '../data/menu.json';
 import site from '../data/site.json';
+import { getMenu } from '../lib/menu-db';
 
+export const prerender = false; // live D1 read — admin edits show up with no rebuild
+
+const menu = await getMenu(env.DB);
 const dishes = menu.categories.flatMap((c) => c.items.filter((i) => i.available).map((i) => i.name));
 ---
 <Base path="/">

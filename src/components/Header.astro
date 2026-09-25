@@ -1,9 +1,7 @@
 ---
 import site from '../data/site.json';
-import menu from '../data/menu.json';
 import PreviewBanner from './PreviewBanner.astro';
-const { path = '/' } = Astro.props;
-const isPreview = menu.status !== 'live';
+const { path = '/', isPreview = false } = Astro.props;
 const links = [
   { href: '/menu', label: 'Menu' },
   { href: '/order', label: 'Order' },

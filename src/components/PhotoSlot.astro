@@ -1,31 +1,15 @@
 ---
-import { Image } from 'astro:assets';
-
-// Real photo when one exists, a designed slot when it doesn't.
-// menu.json's `photo` field is just the item id — resolved here against
-// every file in src/assets/menu, so Astro can optimize each one (AVIF/WebP
-// + srcset) at build time. A path can't be optimized this way, only a
-// statically-known import, hence the glob.
-const images = import.meta.glob<{ default: ImageMetadata }>(
-  '/src/assets/menu/*.{jpg,jpeg,png}',
-  { eager: true },
-);
-
+// Real photo when one exists, a designed slot when it doesn't. Every photo
+// (the original seed set and anything the admin uploads) lives in R2 and is
+// served at /uploads/menu/<id>.jpg — see src/pages/uploads/[...key].ts.
+// A single plain <img>, not astro:assets, because admin-uploaded photos
+// aren't known at build time and so can't go through Astro's build-time
+// image optimizer; the seed photos are already pre-sized for the web.
 const { src = null, alt = '', mark = '' } = Astro.props;
-const resolved = src ? images[`/src/assets/menu/${src}.jpg`]?.default : null;
 ---
 <div class="photo">
-  {resolved ? (
-    <Image
-      src={resolved}
-      alt={alt}
-      loading="lazy"
-      decoding="async"
-      widths={[320, 480, 640]}
-      sizes="(min-width: 1000px) 360px, (min-width: 640px) 45vw, 90vw"
-      format="avif"
-      quality={72}
-    />
+  {src ? (
+    <img src={`/uploads/menu/${src}.jpg`} alt={alt} loading="lazy" decoding="async" width="640" height="480" />
   ) : (
     <Fragment>
       <span class="photo__mark" aria-hidden="true">{mark}</span>

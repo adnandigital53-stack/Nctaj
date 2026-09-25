@@ -1,8 +1,13 @@
 ---
+import { env } from 'cloudflare:workers';
 import Base from '../layouts/Base.astro';
 import MenuItem from '../components/MenuItem.astro';
 import AggregatorStrip from '../components/AggregatorStrip.astro';
-import menu from '../data/menu.json';
+import { getMenu } from '../lib/menu-db';
+
+export const prerender = false; // live D1 read — admin edits show up with no rebuild
+
+const menu = await getMenu(env.DB);
 ---
 <Base path="/menu" title="Menu" description="Biryani, North Indian, desserts, coffee and drinks — the full NC Taj menu.">
   <section class="section section--tight page-head page-head--flush">
