@@ -72,7 +72,8 @@ lines.push(`INSERT OR REPLACE INTO settings (key, value) VALUES ('menu_status', 
 const sqlPath = path.join(ROOT, '.seed.sql');
 writeFileSync(sqlPath, lines.join('\n') + '\n');
 
-console.log(`\nSeeding D1 (${mode}): ${menu.categories.length} categories, ${lines.length - 3} items...`);
+const itemCount = menu.categories.reduce((n, c) => n + c.items.length, 0);
+console.log(`\nSeeding D1 (${mode}): ${menu.categories.length} categories, ${itemCount} items...`);
 execFileSync('npx', ['wrangler', 'd1', 'execute', 'nctaj-menu', mode, '--file', sqlPath], {
   cwd: ROOT,
   stdio: 'inherit',
