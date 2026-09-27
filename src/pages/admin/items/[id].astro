@@ -128,48 +128,6 @@ if (!item) return Astro.redirect('/admin?missing=' + encodeURIComponent(id!));
         e.preventDefault();
       }
     });
-
-    const input = document.getElementById('photo');
-    const status = document.getElementById('photo-status');
-    const form = document.getElementById('item-form');
-
-    async function compress(file) {
-      const img = await new Promise((resolve, reject) => {
-        const i = new Image();
-        i.onload = () => resolve(i);
-        i.onerror = reject;
-        i.src = URL.createObjectURL(file);
-      });
-      const scale = Math.min(1, 1280 / Math.max(img.width, img.height));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(img.width * scale);
-      canvas.height = Math.round(img.height * scale);
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.82));
-      return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
-    }
-
-    let compressed = null;
-    input?.addEventListener('change', async () => {
-      const file = input.files?.[0];
-      if (!file) { compressed = null; status.textContent = ''; return; }
-      status.textContent = 'Compressing…';
-      try {
-        compressed = await compress(file);
-        status.textContent = `${(file.size / 1024).toFixed(0)}KB → ${(compressed.size / 1024).toFixed(0)}KB`;
-      } catch {
-        compressed = null;
-        status.textContent = 'Could not read that image — uploading it as-is.';
-      }
-    });
-
-    form?.addEventListener('submit', (e) => {
-      if (!compressed) return;
-      e.preventDefault();
-      const dt = new DataTransfer();
-      dt.items.add(compressed);
-      input.files = dt.files;
-      form.submit();
-    });
   </script>
+  <script src="../../../scripts/photo-compress.ts"></script>
 </AdminLayout>
