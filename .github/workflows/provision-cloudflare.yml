@@ -86,7 +86,12 @@ jobs:
         id: kv
         run: |
           set +e
-          UUID_RE='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+          # Unlike D1's dashed database_id, a KV namespace id is a plain
+          # 32-char hex string with no dashes — confirmed by a real create
+          # ("id": "12f74d82e7cb4ea48ed8f48423e968f2") that this regex
+          # missed entirely on the previous run, silently failing extraction
+          # even though wrangler had already created the namespace.
+          ID_RE='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{32}'
 
           LIST_OUT=$(npx wrangler kv namespace list 2>&1); LIST_STATUS=$?
           echo "$LIST_OUT"
@@ -110,7 +115,7 @@ jobs:
               echo "::error::wrangler kv namespace create failed (exit $CREATE_STATUS) — see output above."
               exit 1
             fi
-            ID=$(echo "$CREATE_OUT" | grep -oE "$UUID_RE" | head -1)
+            ID=$(echo "$CREATE_OUT" | grep -oE "$ID_RE" | head -1)
             if [ -z "$ID" ]; then echo "::error::Could not extract namespace id from create output above." ; exit 1; fi
             echo "id=$ID" >> "$GITHUB_OUTPUT"
           fi
