@@ -64,10 +64,29 @@ const { title = 'Admin' } = Astro.props;
       .check { display: flex; align-items: center; gap: .5rem; font-size: .9rem; color: var(--cream); }
       .check input { width: auto; }
       .flash {
-        padding: .75rem 1rem; border-radius: 6px; margin-bottom: 1.25rem; font-size: .9rem;
+        position: fixed; top: 1rem; left: 50%; transform: translate(-50%, 0);
+        display: flex; align-items: center; gap: .6rem;
+        max-width: min(460px, calc(100vw - 2rem));
+        padding: .75rem 1rem; border-radius: 6px; font-size: .9rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,.4); z-index: 100;
+        animation: flash-in .25s ease-out;
       }
-      .flash--error { background: rgba(192,57,43,.15); border: 1px solid var(--nonveg); color: #f3b9b0; }
-      .flash--ok { background: rgba(76,175,80,.15); border: 1px solid var(--veg); color: #bfe6c1; }
+      .flash.is-leaving { animation: flash-out .2s ease-in forwards; }
+      @keyframes flash-in {
+        from { opacity: 0; transform: translate(-50%, -10px); }
+        to { opacity: 1; transform: translate(-50%, 0); }
+      }
+      @keyframes flash-out {
+        from { opacity: 1; transform: translate(-50%, 0); }
+        to { opacity: 0; transform: translate(-50%, -10px); }
+      }
+      .flash--error { background: #201517; border: 1px solid var(--nonveg); color: #f3b9b0; }
+      .flash--ok { background: #15201a; border: 1px solid var(--veg); color: #bfe6c1; }
+      .flash__close {
+        margin-left: auto; background: none; border: 0; color: inherit; cursor: pointer;
+        font-size: 1.15rem; line-height: 1; padding: 0 .15rem; opacity: .7; flex-shrink: 0;
+      }
+      .flash__close:hover { opacity: 1; }
       table { width: 100%; border-collapse: collapse; font-size: .875rem; }
       th, td { text-align: left; padding: .65rem .6rem; border-bottom: 1px solid var(--hairline); vertical-align: middle; }
       th { color: var(--cream-muted); font-weight: 600; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; }
@@ -98,5 +117,67 @@ const { title = 'Admin' } = Astro.props;
     <main>
       <slot />
     </main>
+    <script>
+      // Disables a form's submit button the instant it's clicked, so an
+      // impatient second click (or a slow photo upload) can't fire a
+      // duplicate POST before the page navigates away. Runs after any
+      // page-specific confirm() listeners (this script is last in document
+      // order), so it backs off via e.defaultPrevented when one of those
+      // cancels the submit.
+      document.querySelectorAll('main form').forEach((form) => {
+        form.addEventListener('submit', (e) => {
+          if (e.defaultPrevented) return;
+          const btn = form.querySelector('button[type="submit"]');
+          if (!btn || btn.disabled) return;
+          btn.disabled = true;
+          btn.dataset.dsDisabled = '1';
+          if (btn.classList.contains('btn--primary') || btn.classList.contains('btn--danger')) {
+            btn.dataset.dsOriginalText = btn.textContent ?? '';
+            btn.textContent = 'Please wait…';
+          }
+        });
+      });
+
+      // A page restored from the back-forward cache after a submit would
+      // otherwise show a permanently disabled, stuck-on-"Please wait" button.
+      window.addEventListener('pageshow', (e) => {
+        if (!e.persisted) return;
+        document.querySelectorAll('button[data-ds-disabled]').forEach((btn) => {
+          btn.disabled = false;
+          if (btn.dataset.dsOriginalText) btn.textContent = btn.dataset.dsOriginalText;
+        });
+      });
+
+      // Flash messages become auto-dismissing toasts here, once, rather than
+      // in every page that renders the shared `.flash` div.
+      const bar = document.querySelector('.bar');
+      // The bar is sticky at top:0, so its rendered height (not its scroll
+      // position) is what the toast needs to clear — read fresh per toast
+      // since it doesn't change after load.
+      const toastTop = (bar?.getBoundingClientRect().height ?? 0) + 16;
+      document.querySelectorAll('.flash').forEach((el) => {
+        el.style.top = `${toastTop}px`;
+        el.setAttribute('role', 'status');
+        el.setAttribute('aria-live', 'polite');
+
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'flash__close';
+        closeBtn.setAttribute('aria-label', 'Dismiss');
+        closeBtn.textContent = '×';
+        el.appendChild(closeBtn);
+
+        let timer;
+        const dismiss = () => {
+          el.classList.add('is-leaving');
+          el.addEventListener('animationend', () => el.remove(), { once: true });
+        };
+        const schedule = () => { timer = setTimeout(dismiss, 5000); };
+        closeBtn.addEventListener('click', () => { clearTimeout(timer); dismiss(); });
+        el.addEventListener('mouseenter', () => clearTimeout(timer));
+        el.addEventListener('mouseleave', schedule);
+        schedule();
+      });
+    </script>
   </body>
 </html>
