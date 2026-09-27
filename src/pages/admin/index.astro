@@ -65,10 +65,15 @@ const inr = (n: number | null) => (n == null ? 'TBC' : `₹${n}`);
     </form>
   </div>
 
+  <div class="field" style="max-width: 360px; margin-bottom: 1.5rem;">
+    <input type="search" id="admin-search" placeholder="Filter by name…" aria-label="Filter items by name" autocomplete="off" />
+  </div>
+
   {[...byCategory.entries()].map(([catName, catItems]) => (
     <Fragment>
-      <h2 class="cat-heading">{catName}</h2>
-      <div class="card" style="padding: 0; overflow-x: auto;">
+      <div data-admin-cat-block>
+        <h2 class="cat-heading">{catName}</h2>
+        <div class="card" style="padding: 0; overflow-x: auto;">
         <table>
           <thead>
             <tr>
@@ -82,7 +87,7 @@ const inr = (n: number | null) => (n == null ? 'TBC' : `₹${n}`);
           </thead>
           <tbody>
             {catItems.map((item) => (
-              <tr>
+              <tr data-admin-row data-row-name={item.name.toLowerCase()}>
                 <td>
                   {item.photo_key ? (
                     <img class="thumb" src={`/uploads/${item.photo_key}`} alt="" />
@@ -114,7 +119,24 @@ const inr = (n: number | null) => (n == null ? 'TBC' : `₹${n}`);
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </Fragment>
   ))}
+
+  <script is:inline>
+    const search = document.getElementById('admin-search');
+    search?.addEventListener('input', () => {
+      const term = search.value.trim().toLowerCase();
+      document.querySelectorAll('[data-admin-cat-block]').forEach((block) => {
+        let visible = 0;
+        block.querySelectorAll('[data-admin-row]').forEach((row) => {
+          const show = !term || row.dataset.rowName.includes(term);
+          row.hidden = !show;
+          if (show) visible++;
+        });
+        block.hidden = visible === 0;
+      });
+    });
+  </script>
 </AdminLayout>

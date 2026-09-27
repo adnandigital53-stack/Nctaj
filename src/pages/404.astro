@@ -1,0 +1,22 @@
+---
+import Base from '../layouts/Base.astro';
+
+export const prerender = false;
+Astro.response.status = 404;
+---
+<Base path="/404" title="Page not found" description="That page doesn't exist — try the menu or head back home.">
+  <section class="section page-head">
+    <div class="wrap wrap--narrow" style="text-align: center;">
+      <p class="eyebrow">404</p>
+      <h1>Not on the menu</h1>
+      <p class="lede" style="margin-bottom: 2rem;">
+        That page doesn't exist. Maybe it moved, maybe it was never there —
+        either way, here's where you probably meant to go.
+      </p>
+      <div class="grid stagger" style="gap: 1rem; justify-content: center; display: flex; flex-wrap: wrap;">
+        <a class="btn btn--primary" href="/">Home</a>
+        <a class="btn btn--ghost" href="/menu">See the menu</a>
+      </div>
+    </div>
+  </section>
+</Base>

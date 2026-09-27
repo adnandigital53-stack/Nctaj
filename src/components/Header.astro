@@ -57,7 +57,7 @@ const current = (href) => (path === href ? 'page' : undefined);
   regardless of what header's CSS does later.
 -->
 <div class="cart-backdrop" id="cart-backdrop" hidden></div>
-<aside class="cart-drawer" id="cart-drawer" data-open="false" data-whatsapp={site.contact.whatsapp} aria-label="Your order" aria-hidden="true">
+<aside class="cart-drawer" id="cart-drawer" data-open="false" data-whatsapp={site.contact.whatsapp} aria-label="Your order" aria-hidden="true" tabindex="-1">
   <div class="cart-drawer__head">
     <h2>Your order</h2>
     <button type="button" class="cart-drawer__close" id="cart-close" aria-label="Close cart">✕</button>
@@ -135,13 +135,35 @@ const current = (href) => (path === href ? 'page' : undefined);
       return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
     }
 
+    // Everything behind the drawer (nav, page content, footer, sticky order
+    // bar) goes `inert` while it's open — the backdrop already blocks clicks
+    // there, but without this a keyboard user could still Tab straight
+    // through it, since z-index stacking means nothing to focus order.
+    function setBackgroundInert(isInert) {
+      document.querySelectorAll('body > *').forEach((el) => {
+        if (el.id === 'cart-drawer' || el.id === 'cart-backdrop') return;
+        el.toggleAttribute('inert', isInert);
+      });
+    }
+
+    function getFocusable(container) {
+      return [...container.querySelectorAll('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+        .filter((el) => !el.disabled && el.offsetParent !== null);
+    }
+
+    let lastFocused = null;
+
     function openDrawer() {
       const drawer = document.getElementById('cart-drawer');
       const backdrop = document.getElementById('cart-backdrop');
+      lastFocused = document.activeElement;
       drawer?.setAttribute('data-open', 'true');
       drawer?.setAttribute('aria-hidden', 'false');
       if (backdrop) backdrop.hidden = false;
       document.getElementById('cart-toggle')?.setAttribute('aria-expanded', 'true');
+      setBackgroundInert(true);
+      const focusables = drawer ? getFocusable(drawer) : [];
+      (focusables[0] ?? drawer)?.focus();
     }
     function closeDrawer() {
       const drawer = document.getElementById('cart-drawer');
@@ -150,13 +172,32 @@ const current = (href) => (path === href ? 'page' : undefined);
       drawer?.setAttribute('aria-hidden', 'true');
       if (backdrop) backdrop.hidden = true;
       document.getElementById('cart-toggle')?.setAttribute('aria-expanded', 'false');
+      setBackgroundInert(false);
+      lastFocused?.focus?.();
+      lastFocused = null;
     }
     function isDrawerOpen() {
       return document.getElementById('cart-drawer')?.getAttribute('data-open') === 'true';
     }
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && isDrawerOpen()) closeDrawer();
+      if (!isDrawerOpen()) return;
+      if (e.key === 'Escape') { closeDrawer(); return; }
+      if (e.key !== 'Tab') return;
+      // Trap Tab/Shift+Tab inside the drawer — its contents change as the
+      // cart changes, so the focusable list is queried fresh each press.
+      const drawer = document.getElementById('cart-drawer');
+      const focusables = drawer ? getFocusable(drawer) : [];
+      if (!focusables.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     });
 
     function stepper(id, qty, label) {

@@ -1028,6 +1028,25 @@ body { padding-bottom: 0; }
   border: 0;
 }
 
+/* Off-screen until focused, then a real visible skip-to-content target —
+   the only way a keyboard user can bypass the header nav on every page. */
+.skip-link {
+  position: fixed;
+  top: -100px;
+  left: 12px;
+  z-index: 300;
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius-sm);
+  background: var(--saffron);
+  color: #0E0E10;
+  font-weight: 600;
+  font-size: var(--step-sm);
+  text-decoration: none;
+  transition: top 0.2s var(--ease);
+}
+
+.skip-link:focus { top: 12px; }
+
 /* ---------- inner page heads ---------- */
 
 .page-head { padding-top: calc(var(--header-h) + 56px); }

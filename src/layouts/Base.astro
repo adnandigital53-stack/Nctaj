@@ -128,10 +128,11 @@ const structuredData = base
   </head>
 
   <body>
+    <a href="#main" class="skip-link">Skip to content</a>
     <div class="progress" transition:persist></div>
     <Header path={path} isPreview={isPreview} transition:persist />
 
-    <main id="main">
+    <main id="main" tabindex="-1">
       <slot />
     </main>
 
