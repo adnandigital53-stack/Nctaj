@@ -201,3 +201,58 @@ export async function slugifyUnique(db: D1, name: string): Promise<string> {
   }
   return candidate;
 }
+
+/** Same slugging as slugifyUnique, checked against categories instead of items. */
+export async function slugifyUniqueCategory(db: D1, name: string): Promise<string> {
+  const base = name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'category';
+  let candidate = base;
+  let n = 2;
+  while (await db.prepare('SELECT 1 FROM categories WHERE id = ?').bind(candidate).first()) {
+    candidate = `${base}-${n++}`;
+  }
+  return candidate;
+}
+
+export async function createCategory(db: D1, input: { name: string; blurb: string }): Promise<string> {
+  const id = await slugifyUniqueCategory(db, input.name);
+  const { max } = (await db
+    .prepare('SELECT COALESCE(MAX(sort_order), -1) as max FROM categories')
+    .first<{ max: number }>())!;
+  await db
+    .prepare('INSERT INTO categories (id, name, blurb, sort_order) VALUES (?, ?, ?, ?)')
+    .bind(id, input.name, input.blurb, max + 1)
+    .run();
+  return id;
+}
+
+export async function updateCategory(db: D1, id: string, input: { name: string; blurb: string }) {
+  await db.prepare('UPDATE categories SET name = ?, blurb = ? WHERE id = ?').bind(input.name, input.blurb, id).run();
+}
+
+/** Categories with a live item count, for the admin list (and to gate deletion). */
+export async function getCategoriesWithCounts(db: D1) {
+  const { results } = await db
+    .prepare(
+      `SELECT c.id, c.name, c.blurb, c.sort_order, COUNT(i.id) as item_count
+       FROM categories c LEFT JOIN items i ON i.category_id = c.id
+       GROUP BY c.id ORDER BY c.sort_order`,
+    )
+    .all<CategoryRow & { item_count: number }>();
+  return results;
+}
+
+/** Refuses to delete a category that still has items — the caller checks
+ * item_count from getCategoriesWithCounts first; this is the last-line guard. */
+export async function deleteCategory(db: D1, id: string): Promise<boolean> {
+  const { count } = (await db
+    .prepare('SELECT COUNT(*) as count FROM items WHERE category_id = ?')
+    .bind(id)
+    .first<{ count: number }>())!;
+  if (count > 0) return false;
+  await db.prepare('DELETE FROM categories WHERE id = ?').bind(id).run();
+  return true;
+}

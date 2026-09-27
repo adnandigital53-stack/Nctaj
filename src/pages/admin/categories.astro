@@ -1,0 +1,111 @@
+---
+export const prerender = false;
+import { env } from 'cloudflare:workers';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCategoriesWithCounts, createCategory, updateCategory, deleteCategory } from '../../lib/menu-db';
+
+const db = env.DB;
+let flash: { kind: 'ok' | 'error'; text: string } | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = String(form.get('_action') ?? '');
+
+  if (action === 'create') {
+    const name = String(form.get('name') ?? '').trim();
+    const blurb = String(form.get('blurb') ?? '').trim();
+    if (!name) {
+      flash = { kind: 'error', text: 'Category name is required.' };
+    } else {
+      await createCategory(db, { name, blurb });
+      flash = { kind: 'ok', text: `Added "${name}".` };
+    }
+  } else if (action === 'update') {
+    const id = String(form.get('id') ?? '');
+    const name = String(form.get('name') ?? '').trim();
+    const blurb = String(form.get('blurb') ?? '').trim();
+    if (!name) {
+      flash = { kind: 'error', text: 'Category name is required.' };
+    } else {
+      await updateCategory(db, id, { name, blurb });
+      flash = { kind: 'ok', text: `Saved "${name}".` };
+    }
+  } else if (action === 'delete') {
+    const id = String(form.get('id') ?? '');
+    const ok = await deleteCategory(db, id);
+    flash = ok
+      ? { kind: 'ok', text: 'Category deleted.' }
+      : { kind: 'error', text: "Can't delete a category that still has items in it — move or delete those first." };
+  }
+}
+
+const categories = await getCategoriesWithCounts(db);
+---
+<AdminLayout title="Categories">
+  <h1>Categories</h1>
+  <p class="sub">Every item belongs to one of these. Add a new one before adding items that need it.</p>
+
+  {flash && <div class={`flash flash--${flash.kind}`}>{flash.text}</div>}
+
+  <div class="card" style="margin-bottom: 2rem;">
+    <h2 class="cat-heading" style="margin-top:0;">Add a category</h2>
+    <form method="POST">
+      <input type="hidden" name="_action" value="create" />
+      <div class="row">
+        <div class="field">
+          <label for="new-name">Name</label>
+          <input type="text" id="new-name" name="name" required maxlength="60" />
+        </div>
+        <div class="field">
+          <label for="new-blurb">Blurb <span style="opacity:.6;">(shown under the heading on /menu)</span></label>
+          <input type="text" id="new-blurb" name="blurb" maxlength="140" />
+        </div>
+      </div>
+      <button type="submit" class="btn btn--primary">Add category</button>
+    </form>
+  </div>
+
+  {categories.map((cat) => (
+    <div class="card" style="margin-bottom: 1.25rem;">
+      <form method="POST">
+        <input type="hidden" name="_action" value="update" />
+        <input type="hidden" name="id" value={cat.id} />
+        <div class="row">
+          <div class="field">
+            <label for={`name-${cat.id}`}>Name</label>
+            <input type="text" id={`name-${cat.id}`} name="name" required maxlength="60" value={cat.name} />
+          </div>
+          <div class="field">
+            <label for={`blurb-${cat.id}`}>Blurb</label>
+            <input type="text" id={`blurb-${cat.id}`} name="blurb" maxlength="140" value={cat.blurb} />
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem;">
+          <span style="color:var(--cream-muted); font-size:.85rem;">
+            id: <code>{cat.id}</code> — {cat.item_count} item{cat.item_count === 1 ? '' : 's'}
+          </span>
+          <div style="display:flex; gap:.5rem;">
+            <button type="submit" class="btn btn--primary" style="min-height:38px;">Save</button>
+          </div>
+        </div>
+      </form>
+      <form method="POST" style="margin-top:.75rem;" data-name={cat.name} data-count={cat.item_count} class="cat-delete-form">
+        <input type="hidden" name="_action" value="delete" />
+        <input type="hidden" name="id" value={cat.id} />
+        <button type="submit" class="btn btn--danger" style="min-height:38px;" disabled={cat.item_count > 0}>
+          Delete{cat.item_count > 0 ? ` (has ${cat.item_count} item${cat.item_count === 1 ? '' : 's'})` : ''}
+        </button>
+      </form>
+    </div>
+  ))}
+
+  <script>
+    document.querySelectorAll('.cat-delete-form').forEach((form) => {
+      form.addEventListener('submit', (e) => {
+        if (!confirm(`Delete category "${form.dataset.name}"? This can't be undone.`)) {
+          e.preventDefault();
+        }
+      });
+    });
+  </script>
+</AdminLayout>
