@@ -430,6 +430,24 @@ img { max-width: 100%; display: block; }
   border-bottom: 1px solid var(--hairline);
 }
 
+.cart-line__thumb {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: var(--surface-2);
+}
+
+.cart-line__thumb--mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  color: var(--saffron);
+  font-size: 1rem;
+}
+
 .cart-line__name {
   flex: 1;
   font-size: var(--step-sm);

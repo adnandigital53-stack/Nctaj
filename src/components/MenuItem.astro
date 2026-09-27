@@ -20,7 +20,7 @@ const hasPrice = typeof item.price === 'number';
     </div>
     {item.description && <p class="item__desc">{item.description}</p>}
     {hasPrice && (
-      <div class="cart-ctrl" data-cart-control={item.id} data-cart-name={item.name} data-cart-price={item.price}>
+      <div class="cart-ctrl" data-cart-control={item.id} data-cart-name={item.name} data-cart-price={item.price} data-cart-photo={item.photo ?? ''}>
         <button type="button" class="cart-ctrl__add" data-cart-add={item.id}>Add to cart</button>
       </div>
     )}

@@ -104,9 +104,9 @@ const current = (href) => (path === href ? 'page' : undefined);
     const cartCount = (cart) => Object.values(cart).reduce((n, i) => n + i.qty, 0);
     const cartTotal = (cart) => Object.values(cart).reduce((n, i) => n + i.qty * i.price, 0);
 
-    function addItem(id, name, price) {
+    function addItem(id, name, price, photo) {
       const cart = readCart();
-      cart[id] = cart[id] ? { ...cart[id], qty: cart[id].qty + 1 } : { name, price, qty: 1 };
+      cart[id] = cart[id] ? { ...cart[id], qty: cart[id].qty + 1 } : { name, price, photo: photo || null, qty: 1 };
       writeCart(cart);
     }
     function changeQty(id, delta) {
@@ -242,13 +242,27 @@ const current = (href) => (path === href ? 'page' : undefined);
       entries.forEach(([id, item]) => {
         const li = document.createElement('li');
         li.className = 'cart-line';
+
+        let thumb;
+        if (item.photo) {
+          thumb = document.createElement('img');
+          thumb.className = 'cart-line__thumb';
+          thumb.src = `/uploads/menu/${item.photo}.jpg`;
+          thumb.alt = '';
+          thumb.loading = 'lazy';
+        } else {
+          thumb = document.createElement('span');
+          thumb.className = 'cart-line__thumb cart-line__thumb--mark';
+          thumb.textContent = item.name.charAt(0);
+        }
+
         const name = document.createElement('span');
         name.className = 'cart-line__name';
         name.textContent = item.name;
         const price = document.createElement('span');
         price.className = 'cart-line__price';
         price.textContent = `₹${item.qty * item.price}`;
-        li.append(name, stepper(id, item.qty, item.name), price);
+        li.append(thumb, name, stepper(id, item.qty, item.name), price);
         list.appendChild(li);
       });
 
@@ -303,7 +317,7 @@ const current = (href) => (path === href ? 'page' : undefined);
       const addBtn = e.target.closest('[data-cart-add]');
       if (addBtn) {
         const control = addBtn.closest('[data-cart-control]');
-        if (control) addItem(control.dataset.cartControl, control.dataset.cartName, Number(control.dataset.cartPrice));
+        if (control) addItem(control.dataset.cartControl, control.dataset.cartName, Number(control.dataset.cartPrice), control.dataset.cartPhoto);
         return;
       }
       const inc = e.target.closest('[data-cart-inc]');
