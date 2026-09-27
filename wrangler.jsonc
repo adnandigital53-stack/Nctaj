@@ -24,22 +24,25 @@
   },
 
   // --- D1: menu items + categories, editable from /admin -----------------
-  // Placeholder database_id — `astro dev` / `wrangler dev` simulate this
-  // locally with no real Cloudflare resource needed. Swap in the real id
-  // (from `wrangler d1 create nctaj-menu`) once ready to deploy for real;
-  // see MIGRATIONS.md.
+  // Real database_id — provisioned via .github/workflows/provision-cloudflare.yml.
+  // `astro dev` / `wrangler dev --local` still simulate this locally with no
+  // network access needed; this id only matters once actually deployed.
   "d1_databases": [
     { "binding": "DB", "database_name": "nctaj-menu", "database_id": "965d0e4d-d448-4938-b018-80948dadc6ee" }
   ],
 
   // --- R2: admin-uploaded and seed menu photos ----------------------------
+  // Bucket not created yet — R2 isn't enabled on the Cloudflare account.
+  // Once it is, re-run .github/workflows/provision-cloudflare.yml: it
+  // creates this bucket and re-seeds the photos it skipped, no other
+  // changes needed here since bucket_name (not an id) is already correct.
   "r2_buckets": [
     { "binding": "MENU_IMAGES", "bucket_name": "nctaj-menu-images" }
   ],
 
   // Astro's own session helper wants a KV namespace by default; unused here
   // (auth is a signed cookie, not Astro's session API) but harmless to keep —
-  // free tier, no setup cost. Same placeholder-id-for-local-dev pattern.
+  // free tier, no setup cost. Real id, same provisioning workflow as D1 above.
   "kv_namespaces": [
     { "binding": "SESSION", "id": "12f74d82e7cb4ea48ed8f48423e968f2" }
   ]
