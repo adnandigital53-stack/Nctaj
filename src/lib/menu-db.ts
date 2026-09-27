@@ -195,6 +195,26 @@ export async function deleteItem(db: D1, id: string) {
   await db.prepare('DELETE FROM items WHERE id = ?').bind(id).run();
 }
 
+/** Swaps sort_order with the adjacent item in the same category — a no-op at either edge. */
+export async function moveItem(db: D1, id: string, direction: 'up' | 'down'): Promise<void> {
+  const item = await db
+    .prepare('SELECT category_id, sort_order FROM items WHERE id = ?')
+    .bind(id)
+    .first<{ category_id: string; sort_order: number }>();
+  if (!item) return;
+
+  const cmp = direction === 'up' ? '<' : '>';
+  const order = direction === 'up' ? 'DESC' : 'ASC';
+  const neighbor = await db
+    .prepare(`SELECT id, sort_order FROM items WHERE category_id = ? AND sort_order ${cmp} ? ORDER BY sort_order ${order} LIMIT 1`)
+    .bind(item.category_id, item.sort_order)
+    .first<{ id: string; sort_order: number }>();
+  if (!neighbor) return;
+
+  await db.prepare('UPDATE items SET sort_order = ? WHERE id = ?').bind(neighbor.sort_order, id).run();
+  await db.prepare('UPDATE items SET sort_order = ? WHERE id = ?').bind(item.sort_order, neighbor.id).run();
+}
+
 export async function setMenuStatus(db: D1, status: 'placeholder' | 'live') {
   await db
     .prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('menu_status', ?)")

@@ -2,7 +2,7 @@
 export const prerender = false;
 import { env } from 'cloudflare:workers';
 import AdminLayout from '../../layouts/AdminLayout.astro';
-import { getAllItemsForAdmin, deleteItem, setMenuStatus, getMenuStatus } from '../../lib/menu-db';
+import { getAllItemsForAdmin, deleteItem, setMenuStatus, getMenuStatus, moveItem } from '../../lib/menu-db';
 
 const db = env.DB;
 let flash: { kind: 'ok' | 'error'; text: string } | null = null;
@@ -27,6 +27,9 @@ if (Astro.request.method === 'POST') {
       kind: 'ok',
       text: status === 'live' ? 'Site is live — the preview banner is off.' : 'Back to placeholder — the preview banner is on.',
     };
+  } else if (action === 'move-up' || action === 'move-down') {
+    const id = String(form.get('id') ?? '');
+    await moveItem(db, id, action === 'move-up' ? 'up' : 'down');
   }
 }
 
@@ -78,6 +81,7 @@ const inr = (n: number | null) => (n == null ? 'TBC' : `₹${n}`);
           <thead>
             <tr>
               <th></th>
+              <th></th>
               <th>Name</th>
               <th>Price</th>
               <th>Veg</th>
@@ -86,8 +90,20 @@ const inr = (n: number | null) => (n == null ? 'TBC' : `₹${n}`);
             </tr>
           </thead>
           <tbody>
-            {catItems.map((item) => (
+            {catItems.map((item, i) => (
               <tr data-admin-row data-row-name={item.name.toLowerCase()}>
+                <td style="white-space:nowrap;">
+                  <form method="POST" style="display:inline;">
+                    <input type="hidden" name="_action" value="move-up" />
+                    <input type="hidden" name="id" value={item.id} />
+                    <button type="submit" class="btn" style="min-height:28px; min-width:28px; padding:0; font-size:.75rem;" disabled={i === 0} aria-label={`Move ${item.name} up`}>↑</button>
+                  </form>
+                  <form method="POST" style="display:inline;">
+                    <input type="hidden" name="_action" value="move-down" />
+                    <input type="hidden" name="id" value={item.id} />
+                    <button type="submit" class="btn" style="min-height:28px; min-width:28px; padding:0; font-size:.75rem;" disabled={i === catItems.length - 1} aria-label={`Move ${item.name} down`}>↓</button>
+                  </form>
+                </td>
                 <td>
                   {item.photo_key ? (
                     <img class="thumb" src={`/uploads/${item.photo_key}`} alt="" />
