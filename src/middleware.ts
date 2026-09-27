@@ -49,7 +49,14 @@ function decorateResponse(response: Response, pathname: string, method: string):
     !pathname.startsWith('/admin') &&
     !pathname.startsWith('/uploads') &&
     !headers.has('cache-control');
-  if (cacheable) headers.set('cache-control', 'public, max-age=10, stale-while-revalidate=120');
+  if (cacheable) {
+    headers.set('cache-control', 'public, max-age=10, stale-while-revalidate=120');
+  } else if (pathname.startsWith('/admin')) {
+    // Explicit no-store rather than just omitting the header — this is
+    // authenticated content (item prices/photos, the login form), so no
+    // intermediate cache or browser back-forward-cache should retain it.
+    headers.set('cache-control', 'no-store, private');
+  }
 
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
