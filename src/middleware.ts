@@ -28,24 +28,41 @@ const CSP = [
   "form-action 'self'",
 ].join('; ');
 
-function withSecurityHeaders(response: Response): Response {
+function decorateResponse(response: Response, pathname: string, method: string): Response {
   const headers = new Headers(response.headers);
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('X-Frame-Options', 'DENY');
   headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   headers.set('Content-Security-Policy', CSP);
+
+  // Short public cache on the D1-backed pages — every page reads the
+  // database on every request now, so a repeat visit within the window
+  // (or a crawler re-fetching) doesn't re-hit D1 for content that hasn't
+  // changed. stale-while-revalidate keeps it from ever feeling stale for
+  // long. Skipped for admin (never cache authenticated responses),
+  // /uploads (already sets its own long-lived immutable cache), non-GET,
+  // non-200s, and anything a route already set its own cache-control for.
+  const cacheable =
+    method === 'GET' &&
+    response.status === 200 &&
+    !pathname.startsWith('/admin') &&
+    !pathname.startsWith('/uploads') &&
+    !headers.has('cache-control');
+  if (cacheable) headers.set('cache-control', 'public, max-age=10, stale-while-revalidate=120');
+
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = context.url;
+  const method = context.request.method;
 
   if (pathname.startsWith('/admin') && !PUBLIC_PATHS.includes(pathname)) {
     const ok = await isValidSession(env, context.cookies);
-    if (!ok) return withSecurityHeaders(context.redirect('/admin/login'));
+    if (!ok) return decorateResponse(context.redirect('/admin/login'), pathname, method);
     context.locals.isAdmin = true;
   }
 
-  return withSecurityHeaders(await next());
+  return decorateResponse(await next(), pathname, method);
 });
