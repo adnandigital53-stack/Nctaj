@@ -22,6 +22,47 @@ const ga4 = site.analytics.ga4MeasurementId;
 const base = site.siteUrl?.replace(/\/$/, '') ?? null;
 const canonical = base ? new URL(path, `${base}/`).href : null;
 const ogImage = base ? `${base}/og.jpg` : null;
+
+// schema.org Restaurant markup for rich results (Google/Bing local search,
+// map cards). Same absolute-URL gating as the OG tags above. Every field
+// here traces back to a real value already in site.json — no invented
+// ratings, reviews, or cuisine tags not already stated in site.description.
+// "NC Taj, L-1 Irwin Road, Lashkar Mohalla, Mysore – 570001" ->
+// streetAddress "L-1 Irwin Road, Lashkar Mohalla", locality "Mysore", postal "570001".
+const [, ...addressParts] = site.contact.address.split(',').map((s) => s.trim());
+const [locality, postalCode] = (addressParts.at(-1) ?? '').split('–').map((s) => s.trim());
+const structuredAddress = addressParts.length >= 2 && locality && postalCode
+  ? {
+      '@type': 'PostalAddress',
+      streetAddress: addressParts.slice(0, -1).join(', '),
+      addressLocality: locality,
+      postalCode,
+      addressCountry: 'IN',
+    }
+  : undefined;
+const structuredData = base
+  ? {
+      '@context': 'https://schema.org',
+      '@type': 'Restaurant',
+      name: site.name,
+      alternateName: site.fullName,
+      description: site.description,
+      url: `${base}/`,
+      image: ogImage,
+      telephone: site.contact.phone[0]?.dial,
+      servesCuisine: ['Indian', 'North Indian', 'Biryani'],
+      priceRange: '₹29–₹499',
+      address: structuredAddress,
+      openingHoursSpecification: {
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+        opens: site.contact.hours.opens,
+        closes: site.contact.hours.closes,
+      },
+      hasMenu: `${base}/menu`,
+      acceptsReservations: 'False',
+    }
+  : null;
 ---
 
 <!doctype html>
@@ -33,6 +74,8 @@ const ogImage = base ? `${base}/og.jpg` : null;
     <meta name="description" content={description} />
     <meta name="theme-color" content="#0E0E10" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
 
     {/* Client-side navigation, so moving between pages cross-fades instead
         of flashing white. Scripts re-init on astro:page-load below. */}
@@ -60,6 +103,8 @@ const ogImage = base ? `${base}/og.jpg` : null;
         <meta name="twitter:image" content={ogImage} />
       </Fragment>
     )}
+
+    {structuredData && <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />}
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

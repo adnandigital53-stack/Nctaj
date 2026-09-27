@@ -19,6 +19,10 @@ const menu = await getMenu(env.DB);
   </section>
 
   <div class="wrap">
+    <div class="menu-search">
+      <input type="search" id="menu-search" placeholder="Search the menu…" aria-label="Search menu items" autocomplete="off" />
+    </div>
+
     <div class="filters" role="group" aria-label="Filter menu by dietary preference">
       <button class="filter" type="button" data-filter="all" aria-pressed="true">All</button>
       <button class="filter" type="button" data-filter="veg" aria-pressed="false">Veg</button>
@@ -32,6 +36,7 @@ const menu = await getMenu(env.DB);
     </div>
 
     <p class="visually-hidden" role="status" aria-live="polite" id="filter-status"></p>
+    <p class="menu-search__empty" id="menu-search-empty" hidden>No dishes match your search.</p>
 
     {menu.categories.filter((cat) => cat.items.some((i) => i.available)).map((cat) => (
       <section class="menu-category" id={cat.id} data-category>
@@ -64,12 +69,28 @@ const menu = await getMenu(env.DB);
         const items = document.querySelectorAll('.item');
         const categories = document.querySelectorAll('[data-category]');
         const status = document.getElementById('filter-status');
+        const searchInput = document.getElementById('menu-search');
+        const searchEmpty = document.getElementById('menu-search-empty');
 
-        const apply = (mode) => {
+        // Mode (all/veg/nonveg) and the search term are independent axes —
+        // a card shows only when it clears both. State lives here rather
+        // than being passed around so either the buttons or the search box
+        // can trigger a re-render without needing to know about the other.
+        let mode = document.querySelector('.filter[aria-pressed="true"]')?.dataset.filter ?? 'all';
+        let search = '';
+
+        const matchesSearch = (item) => {
+          if (!search) return true;
+          const name = item.querySelector('.item__name')?.textContent.toLowerCase() ?? '';
+          const desc = item.querySelector('.item__desc')?.textContent.toLowerCase() ?? '';
+          return name.includes(search) || desc.includes(search);
+        };
+
+        const apply = () => {
           items.forEach((item) => {
             const isVeg = item.dataset.veg === 'true';
-            const show = mode === 'all' || (mode === 'veg' && isVeg) || (mode === 'nonveg' && !isVeg);
-            item.hidden = !show;
+            const modeOk = mode === 'all' || (mode === 'veg' && isVeg) || (mode === 'nonveg' && !isVeg);
+            item.hidden = !(modeOk && matchesSearch(item));
           });
 
           // Hide a category heading entirely when the filter empties it.
@@ -81,6 +102,7 @@ const menu = await getMenu(env.DB);
           });
 
           if (status) status.textContent = `${shown} items shown`;
+          if (searchEmpty) searchEmpty.hidden = !(search && shown === 0);
         };
 
         buttons.forEach((btn) => {
@@ -88,7 +110,7 @@ const menu = await getMenu(env.DB);
           btn.dataset.bound = '1';
           btn.addEventListener('click', () => {
             buttons.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
-            const mode = btn.dataset.filter;
+            mode = btn.dataset.filter;
 
             // FLIP: note where every visible card is, apply the filter at once,
             // then glide each surviving card from its old spot to its new one.
@@ -100,7 +122,7 @@ const menu = await getMenu(env.DB);
               items.forEach((el) => { if (!el.hidden) before.set(el, el.getBoundingClientRect()); });
             }
 
-            apply(mode);
+            apply();
 
             if (!reduce) {
               items.forEach((el) => {
@@ -122,6 +144,16 @@ const menu = await getMenu(env.DB);
             }
           });
         });
+
+        if (searchInput && !searchInput.dataset.bound) {
+          searchInput.dataset.bound = '1';
+          // Plain re-render, no FLIP — animating every keystroke is noise,
+          // not delight.
+          searchInput.addEventListener('input', () => {
+            search = searchInput.value.trim().toLowerCase();
+            apply();
+          });
+        }
 
         // --- scroll-spy for the jump chips --------------------------
         const chips = document.querySelectorAll('[data-jump]');

@@ -1,20 +1,25 @@
 ---
 export const prerender = false;
 import { env } from 'cloudflare:workers';
-import { verifyPassword, setSessionCookie } from '../../lib/auth';
+import { verifyPassword, setSessionCookie, checkLoginRateLimit, recordFailedLogin, clearLoginRateLimit } from '../../lib/auth';
 
 let error: string | null = null;
 
 if (Astro.request.method === 'POST') {
+  const ip = Astro.request.headers.get('cf-connecting-ip') ?? 'unknown';
   const form = await Astro.request.formData();
   const password = String(form.get('password') ?? '');
 
   if (!env.ADMIN_PASSWORD) {
     error = 'No admin password is set yet. Run: wrangler secret put ADMIN_PASSWORD';
+  } else if (!(await checkLoginRateLimit(env.SESSION, ip))) {
+    error = 'Too many attempts. Try again in a few minutes.';
   } else if (await verifyPassword(env, password)) {
+    await clearLoginRateLimit(env.SESSION, ip);
     await setSessionCookie(Astro.cookies, env);
     return Astro.redirect('/admin');
   } else {
+    await recordFailedLogin(env.SESSION, ip);
     error = 'Wrong password.';
   }
 }

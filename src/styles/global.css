@@ -703,6 +703,30 @@ img { max-width: 100%; display: block; }
 
 /* ---------- menu ---------- */
 
+.menu-search { margin-bottom: 1.5rem; }
+
+.menu-search input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 1.1rem;
+  border-radius: 999px;
+  border: 1px solid var(--hairline-strong);
+  background: var(--surface);
+  color: var(--cream);
+  font-family: var(--font-body);
+  font-size: var(--step-body);
+}
+
+.menu-search input::placeholder { color: var(--cream-muted); }
+.menu-search input:focus { outline: 2px solid var(--saffron); outline-offset: 2px; }
+
+.menu-search__empty {
+  padding-block: 3rem;
+  text-align: center;
+  color: var(--cream-muted);
+  font-size: var(--step-sm);
+}
+
 .filters {
   position: sticky;
   top: var(--header-h);

@@ -65,3 +65,27 @@ export async function isValidSession(env: Env, cookies: AstroCookies): Promise<b
   const expected = await hmac(env.ADMIN_PASSWORD, String(expires));
   return timingSafeEqual(sig ?? '', expected);
 }
+
+// Login brute-force throttling, keyed by client IP in the same KV namespace
+// Astro's session helper already needs (SESSION) — no new binding required.
+// A fixed attempt count per IP is a coarse signal (shared IPs, VPNs), but for
+// a single-admin password this only needs to turn "try forever" into "try 5
+// times, then wait 15 minutes," not attribute attempts to individuals.
+const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_WINDOW_SECONDS = 15 * 60;
+const rateLimitKey = (ip: string) => `login_attempts:${ip}`;
+
+export async function checkLoginRateLimit(kv: KVNamespace, ip: string): Promise<boolean> {
+  const raw = await kv.get(rateLimitKey(ip));
+  return (raw ? Number(raw) : 0) < RATE_LIMIT_MAX;
+}
+
+export async function recordFailedLogin(kv: KVNamespace, ip: string): Promise<void> {
+  const key = rateLimitKey(ip);
+  const count = (Number(await kv.get(key)) || 0) + 1;
+  await kv.put(key, String(count), { expirationTtl: RATE_LIMIT_WINDOW_SECONDS });
+}
+
+export async function clearLoginRateLimit(kv: KVNamespace, ip: string): Promise<void> {
+  await kv.delete(rateLimitKey(ip));
+}

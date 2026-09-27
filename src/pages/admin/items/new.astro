@@ -3,6 +3,7 @@ export const prerender = false;
 import { env } from 'cloudflare:workers';
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { getCategories, createItem, slugifyUnique } from '../../../lib/menu-db';
+import { sniffImageType } from '../../../lib/image-sniff';
 
 const db = env.DB;
 let error: string | null = null;
@@ -32,10 +33,14 @@ if (Astro.request.method === 'POST') {
       if (photo.size > 8 * 1024 * 1024) {
         error = 'That photo is over 8MB even after compression — try a different one.';
       } else {
-        photoKey = `menu/${id}-${Date.now()}.jpg`;
-        await env.MENU_IMAGES.put(photoKey, await photo.arrayBuffer(), {
-          httpMetadata: { contentType: photo.type || 'image/jpeg' },
-        });
+        const buffer = await photo.arrayBuffer();
+        const sniffed = sniffImageType(new Uint8Array(buffer.slice(0, 12)));
+        if (!sniffed) {
+          error = "That file doesn't look like a real photo (JPEG/PNG/WebP) — try a different one.";
+        } else {
+          photoKey = `menu/${id}-${Date.now()}.jpg`;
+          await env.MENU_IMAGES.put(photoKey, buffer, { httpMetadata: { contentType: sniffed } });
+        }
       }
     }
 
