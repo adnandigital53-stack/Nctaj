@@ -2,7 +2,7 @@
 export const prerender = false;
 import { env } from 'cloudflare:workers';
 import AdminLayout from '../../layouts/AdminLayout.astro';
-import { getCategoriesWithCounts, createCategory, updateCategory, deleteCategory } from '../../lib/menu-db';
+import { getCategoriesWithCounts, createCategory, updateCategory, deleteCategory, moveCategory } from '../../lib/menu-db';
 
 const db = env.DB;
 let flash: { kind: 'ok' | 'error'; text: string } | null = null;
@@ -36,6 +36,9 @@ if (Astro.request.method === 'POST') {
     flash = ok
       ? { kind: 'ok', text: 'Category deleted.' }
       : { kind: 'error', text: "Can't delete a category that still has items in it — move or delete those first." };
+  } else if (action === 'move-up' || action === 'move-down') {
+    const id = String(form.get('id') ?? '');
+    await moveCategory(db, id, action === 'move-up' ? 'up' : 'down');
   }
 }
 
@@ -65,8 +68,20 @@ const categories = await getCategoriesWithCounts(db);
     </form>
   </div>
 
-  {categories.map((cat) => (
+  {categories.map((cat, i) => (
     <div class="card" style="margin-bottom: 1.25rem;">
+      <div style="display:flex; gap:.4rem; margin-bottom:.75rem;">
+        <form method="POST" style="display:inline;">
+          <input type="hidden" name="_action" value="move-up" />
+          <input type="hidden" name="id" value={cat.id} />
+          <button type="submit" class="btn" style="min-height:28px; min-width:28px; padding:0; font-size:.75rem;" disabled={i === 0} aria-label={`Move ${cat.name} up`}>↑</button>
+        </form>
+        <form method="POST" style="display:inline;">
+          <input type="hidden" name="_action" value="move-down" />
+          <input type="hidden" name="id" value={cat.id} />
+          <button type="submit" class="btn" style="min-height:28px; min-width:28px; padding:0; font-size:.75rem;" disabled={i === categories.length - 1} aria-label={`Move ${cat.name} down`}>↓</button>
+        </form>
+      </div>
       <form method="POST">
         <input type="hidden" name="_action" value="update" />
         <input type="hidden" name="id" value={cat.id} />

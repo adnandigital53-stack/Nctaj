@@ -280,6 +280,23 @@ export async function getCategoriesWithCounts(db: D1) {
   return results;
 }
 
+/** Swaps sort_order with the adjacent category — a no-op at either edge. */
+export async function moveCategory(db: D1, id: string, direction: 'up' | 'down'): Promise<void> {
+  const cat = await db.prepare('SELECT sort_order FROM categories WHERE id = ?').bind(id).first<{ sort_order: number }>();
+  if (!cat) return;
+
+  const cmp = direction === 'up' ? '<' : '>';
+  const order = direction === 'up' ? 'DESC' : 'ASC';
+  const neighbor = await db
+    .prepare(`SELECT id, sort_order FROM categories WHERE sort_order ${cmp} ? ORDER BY sort_order ${order} LIMIT 1`)
+    .bind(cat.sort_order)
+    .first<{ id: string; sort_order: number }>();
+  if (!neighbor) return;
+
+  await db.prepare('UPDATE categories SET sort_order = ? WHERE id = ?').bind(neighbor.sort_order, id).run();
+  await db.prepare('UPDATE categories SET sort_order = ? WHERE id = ?').bind(cat.sort_order, neighbor.id).run();
+}
+
 /** Refuses to delete a category that still has items — the caller checks
  * item_count from getCategoriesWithCounts first; this is the last-line guard. */
 export async function deleteCategory(db: D1, id: string): Promise<boolean> {

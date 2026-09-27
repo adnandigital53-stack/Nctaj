@@ -1210,6 +1210,7 @@ body { padding-bottom: 0; }
 
 .status--hero { margin-bottom: 1.25rem; }
 .status--contact { margin-top: 0.5rem; }
+.status--order { margin-bottom: 2rem; }
 
 .status__dot {
   position: relative;
