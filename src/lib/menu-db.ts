@@ -59,6 +59,21 @@ export async function getMenuStatus(db: D1): Promise<'placeholder' | 'live'> {
   return (row?.value as 'placeholder' | 'live') ?? 'placeholder';
 }
 
+/**
+ * Same as getMenu, but never throws — a transient D1 hiccup shouldn't crash
+ * every page that shows the menu with a raw 500. Callers check `error` and
+ * degrade appropriately (the homepage's dish ribbon just goes quiet with an
+ * empty list; /menu itself needs to show something explicit instead of a
+ * silently empty grid).
+ */
+export async function getMenuSafe(db: D1): Promise<{ menu: Menu; error: boolean }> {
+  try {
+    return { menu: await getMenu(db), error: false };
+  } catch {
+    return { menu: { status: 'live', categories: [] }, error: true };
+  }
+}
+
 /** Everything the public site needs: categories with their available-first ordering intact. */
 export async function getMenu(db: D1): Promise<Menu> {
   const [{ results: cats }, { results: items }, status] = await Promise.all([

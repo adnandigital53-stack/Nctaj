@@ -14,7 +14,9 @@ import { getMenuStatus } from '../lib/menu-db';
 // them, needs a live D1 read for the placeholder/live banner.
 
 const { title, description = site.description, path = '/' } = Astro.props;
-const isPreview = (await getMenuStatus(env.DB)) !== 'live';
+// Every page calls this, so a transient D1 hiccup shouldn't crash the whole
+// site over a banner — fail toward "live" (banner off) rather than raw 500.
+const isPreview = await getMenuStatus(env.DB).then((s) => s !== 'live').catch(() => false);
 const fullTitle = title ? `${title} — ${site.name}` : `${site.name} — ${site.tagline}`;
 const ga4 = site.analytics.ga4MeasurementId;
 
@@ -144,6 +146,28 @@ const structuredData = base
         // --- bound once for the life of the document ------------------
         if (!window.__nctaj) {
           window.__nctaj = { io: null };
+
+          // Registered once here rather than per-navigation like the burger's
+          // own click handler below — `.burger`/`.mobile-nav` are looked up
+          // fresh on every fire instead of closed over, since (like the cart
+          // header) a soft navigation replaces these elements even though
+          // Header carries `transition:persist`.
+          const closeMobileNav = () => {
+            document.querySelector('.burger')?.setAttribute('aria-expanded', 'false');
+            document.querySelector('.mobile-nav')?.setAttribute('data-open', 'false');
+          };
+          document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            if (document.querySelector('.burger')?.getAttribute('aria-expanded') !== 'true') return;
+            closeMobileNav();
+            document.querySelector('.burger')?.focus();
+          });
+          document.addEventListener('click', (e) => {
+            const burger = document.querySelector('.burger');
+            if (burger?.getAttribute('aria-expanded') !== 'true') return;
+            if (e.target.closest('.mobile-nav') || e.target.closest('.burger')) return;
+            closeMobileNav();
+          });
 
           // Outbound click tracking. Fires with or without GA4 configured.
           document.addEventListener('click', (e) => {

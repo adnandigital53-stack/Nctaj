@@ -3,11 +3,12 @@ import { env } from 'cloudflare:workers';
 import Base from '../layouts/Base.astro';
 import MenuItem from '../components/MenuItem.astro';
 import AggregatorStrip from '../components/AggregatorStrip.astro';
-import { getMenu } from '../lib/menu-db';
+import site from '../data/site.json';
+import { getMenuSafe } from '../lib/menu-db';
 
 export const prerender = false; // live D1 read — admin edits show up with no rebuild
 
-const menu = await getMenu(env.DB);
+const { menu, error: menuError } = await getMenuSafe(env.DB);
 ---
 <Base path="/menu" title="Menu" description="Biryani, North Indian, desserts, coffee and drinks — the full NC Taj menu.">
   <section class="section section--tight page-head page-head--flush">
@@ -19,36 +20,50 @@ const menu = await getMenu(env.DB);
   </section>
 
   <div class="wrap">
-    <div class="menu-search">
-      <input type="search" id="menu-search" placeholder="Search the menu…" aria-label="Search menu items" autocomplete="off" />
-    </div>
-
-    <div class="filters" role="group" aria-label="Filter menu by dietary preference">
-      <button class="filter" type="button" data-filter="all" aria-pressed="true">All</button>
-      <button class="filter" type="button" data-filter="veg" aria-pressed="false">Veg</button>
-      <button class="filter" type="button" data-filter="nonveg" aria-pressed="false">Non-veg</button>
-
-      <nav class="jump" aria-label="Jump to category">
-        {menu.categories
-          .filter((cat) => cat.items.some((i) => i.available))
-          .map((cat) => <a href={`#${cat.id}`} data-jump={cat.id}>{cat.name}</a>)}
-      </nav>
-    </div>
-
-    <p class="visually-hidden" role="status" aria-live="polite" id="filter-status"></p>
-    <p class="menu-search__empty" id="menu-search-empty" hidden>No dishes match your search.</p>
-
-    {menu.categories.filter((cat) => cat.items.some((i) => i.available)).map((cat) => (
-      <section class="menu-category" id={cat.id} data-category>
-        <div class="menu-category__head">
-          <p class="eyebrow">{cat.name}</p>
-          <p class="menu-category__blurb">{cat.blurb}</p>
+    {menuError ? (
+      <div class="card" style="padding: 2rem; text-align: center; margin-bottom: 2rem;">
+        <p style="margin: 0 0 1rem; font-size: var(--step-lg); font-family: var(--font-display);">
+          The menu's having trouble loading right now.
+        </p>
+        <p style="color: var(--cream-muted); margin: 0 0 1.5rem;">
+          Give us a call and we'll walk you through it — or check back in a few minutes.
+        </p>
+        <a class="btn btn--primary" href={`tel:${site.contact.phone[0]?.dial}`}>Call {site.contact.phone[0]?.display}</a>
+      </div>
+    ) : (
+      <Fragment>
+        <div class="menu-search">
+          <input type="search" id="menu-search" placeholder="Search the menu…" aria-label="Search menu items" autocomplete="off" />
         </div>
-        <div class="grid grid--3">
-          {cat.items.filter((i) => i.available).map((item, i) => <MenuItem item={item} index={i} />)}
+
+        <div class="filters" role="group" aria-label="Filter menu by dietary preference">
+          <button class="filter" type="button" data-filter="all" aria-pressed="true">All</button>
+          <button class="filter" type="button" data-filter="veg" aria-pressed="false">Veg</button>
+          <button class="filter" type="button" data-filter="nonveg" aria-pressed="false">Non-veg</button>
+
+          <nav class="jump" aria-label="Jump to category">
+            {menu.categories
+              .filter((cat) => cat.items.some((i) => i.available))
+              .map((cat) => <a href={`#${cat.id}`} data-jump={cat.id}>{cat.name}</a>)}
+          </nav>
         </div>
-      </section>
-    ))}
+
+        <p class="visually-hidden" role="status" aria-live="polite" id="filter-status"></p>
+        <p class="menu-search__empty" id="menu-search-empty" hidden>No dishes match your search.</p>
+
+        {menu.categories.filter((cat) => cat.items.some((i) => i.available)).map((cat) => (
+          <section class="menu-category" id={cat.id} data-category>
+            <div class="menu-category__head">
+              <p class="eyebrow">{cat.name}</p>
+              <p class="menu-category__blurb">{cat.blurb}</p>
+            </div>
+            <div class="grid grid--3">
+              {cat.items.filter((i) => i.available).map((item, i) => <MenuItem item={item} index={i} />)}
+            </div>
+          </section>
+        ))}
+      </Fragment>
+    )}
 
     <div style="padding-block: clamp(2rem, 6vw, 4rem);">
       <AggregatorStrip placement="menu" />
