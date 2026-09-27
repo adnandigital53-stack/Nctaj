@@ -10,7 +10,17 @@ const { title = 'Admin' } = Astro.props;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
     <title>{title} — NC Taj Admin</title>
-    <style>
+    <!--
+      is:global, not scoped — every admin page (categories, items, the
+      dashboard) renders its markup in its OWN template and reaches this
+      layout only through <slot />. Astro's scoping only tags elements a
+      component renders directly; slotted content never gets the parent
+      layout's data-astro-cid attribute, so a scoped style block here would
+      never match a single element any page actually renders. Safe globally:
+      this is a standalone document (own <html>/<head>/<body>, never Base.astro),
+      so nothing from the public site's stylesheet ever shares a page with it.
+    -->
+    <style is:global>
       :root {
         --bg: #0e0e10; --surface: #17171a; --surface-2: #1f1f24;
         --cream: #f5efe6; --cream-muted: #b5ada1;

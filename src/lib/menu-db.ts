@@ -146,14 +146,13 @@ export interface ItemInput {
 }
 
 export async function createItem(db: D1, input: ItemInput, photoKey: string | null) {
-  const { max } = (await db
-    .prepare('SELECT COALESCE(MAX(sort_order), -1) as max FROM items WHERE category_id = ?')
-    .bind(input.categoryId)
-    .first<{ max: number }>())!;
+  // sort_order comes from a subquery in the same statement, not a prior
+  // SELECT — two admins (or two tabs) adding to the same category at once
+  // can't both read the same MAX and land on the same sort_order.
   await db
     .prepare(
       `INSERT INTO items (id, category_id, name, description, price, veg, photo_key, bestseller, available, sort_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM items WHERE category_id = ?))`,
     )
     .bind(
       input.id,
@@ -165,7 +164,7 @@ export async function createItem(db: D1, input: ItemInput, photoKey: string | nu
       photoKey,
       input.bestseller ? 1 : 0,
       input.available ? 1 : 0,
-      max + 1,
+      input.categoryId,
     )
     .run();
 }
@@ -211,8 +210,13 @@ export async function moveItem(db: D1, id: string, direction: 'up' | 'down'): Pr
     .first<{ id: string; sort_order: number }>();
   if (!neighbor) return;
 
-  await db.prepare('UPDATE items SET sort_order = ? WHERE id = ?').bind(neighbor.sort_order, id).run();
-  await db.prepare('UPDATE items SET sort_order = ? WHERE id = ?').bind(item.sort_order, neighbor.id).run();
+  // batch(), not two sequential .run()s — a double-click firing this twice
+  // in short succession must not interleave with itself and leave both rows
+  // on the same sort_order.
+  await db.batch([
+    db.prepare('UPDATE items SET sort_order = ? WHERE id = ?').bind(neighbor.sort_order, id),
+    db.prepare('UPDATE items SET sort_order = ? WHERE id = ?').bind(item.sort_order, neighbor.id),
+  ]);
 }
 
 export async function setMenuStatus(db: D1, status: 'placeholder' | 'live') {
@@ -254,12 +258,12 @@ export async function slugifyUniqueCategory(db: D1, name: string): Promise<strin
 
 export async function createCategory(db: D1, input: { name: string; blurb: string }): Promise<string> {
   const id = await slugifyUniqueCategory(db, input.name);
-  const { max } = (await db
-    .prepare('SELECT COALESCE(MAX(sort_order), -1) as max FROM categories')
-    .first<{ max: number }>())!;
+  // sort_order via subquery, same reasoning as createItem above.
   await db
-    .prepare('INSERT INTO categories (id, name, blurb, sort_order) VALUES (?, ?, ?, ?)')
-    .bind(id, input.name, input.blurb, max + 1)
+    .prepare(
+      'INSERT INTO categories (id, name, blurb, sort_order) VALUES (?, ?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM categories))',
+    )
+    .bind(id, input.name, input.blurb)
     .run();
   return id;
 }
@@ -293,18 +297,21 @@ export async function moveCategory(db: D1, id: string, direction: 'up' | 'down')
     .first<{ id: string; sort_order: number }>();
   if (!neighbor) return;
 
-  await db.prepare('UPDATE categories SET sort_order = ? WHERE id = ?').bind(neighbor.sort_order, id).run();
-  await db.prepare('UPDATE categories SET sort_order = ? WHERE id = ?').bind(cat.sort_order, neighbor.id).run();
+  await db.batch([
+    db.prepare('UPDATE categories SET sort_order = ? WHERE id = ?').bind(neighbor.sort_order, id),
+    db.prepare('UPDATE categories SET sort_order = ? WHERE id = ?').bind(cat.sort_order, neighbor.id),
+  ]);
 }
 
 /** Refuses to delete a category that still has items — the caller checks
- * item_count from getCategoriesWithCounts first; this is the last-line guard. */
+ * item_count from getCategoriesWithCounts first; this is the last-line guard.
+ * The has-items check and the delete are one statement, not a SELECT
+ * followed by a DELETE, so an item created in between (another tab, or a
+ * request that raced this one) can't slip through and get orphaned. */
 export async function deleteCategory(db: D1, id: string): Promise<boolean> {
-  const { count } = (await db
-    .prepare('SELECT COUNT(*) as count FROM items WHERE category_id = ?')
-    .bind(id)
-    .first<{ count: number }>())!;
-  if (count > 0) return false;
-  await db.prepare('DELETE FROM categories WHERE id = ?').bind(id).run();
-  return true;
+  const result = await db
+    .prepare('DELETE FROM categories WHERE id = ? AND NOT EXISTS (SELECT 1 FROM items WHERE category_id = ?)')
+    .bind(id, id)
+    .run();
+  return result.meta.changes > 0;
 }
