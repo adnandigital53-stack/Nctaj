@@ -29,7 +29,7 @@
   // (from `wrangler d1 create nctaj-menu`) once ready to deploy for real;
   // see MIGRATIONS.md.
   "d1_databases": [
-    { "binding": "DB", "database_name": "nctaj-menu", "database_id": "local-dev-placeholder" }
+    { "binding": "DB", "database_name": "nctaj-menu", "database_id": "965d0e4d-d448-4938-b018-80948dadc6ee" }
   ],
 
   // --- R2: admin-uploaded and seed menu photos ----------------------------
@@ -41,6 +41,6 @@
   // (auth is a signed cookie, not Astro's session API) but harmless to keep —
   // free tier, no setup cost. Same placeholder-id-for-local-dev pattern.
   "kv_namespaces": [
-    { "binding": "SESSION", "id": "local-dev-placeholder" }
+    { "binding": "SESSION", "id": "12f74d82e7cb4ea48ed8f48423e968f2" }
   ]
 }
