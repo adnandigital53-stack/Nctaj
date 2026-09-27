@@ -72,10 +72,15 @@ jobs:
           set +e
           OUT=$(npx wrangler r2 bucket create nctaj-menu-images 2>&1); STATUS=$?
           echo "$OUT"
-          if [ $STATUS -ne 0 ] && ! echo "$OUT" | grep -qi "already exists"; then
-            echo "::error::wrangler r2 bucket create failed (exit $STATUS) — see output above."
-            exit 1
+          if [ $STATUS -eq 0 ] || echo "$OUT" | grep -qi "already exists"; then
+            exit 0
           fi
+          if echo "$OUT" | grep -qi "enable R2 through the Cloudflare Dashboard\|code: 10042"; then
+            echo "::warning::R2 isn't enabled on this Cloudflare account yet (error 10042) — skipping bucket creation and photo upload for now. Menu items will seed with the site's existing 'Photo pending' placeholder; re-run this workflow once R2 is enabled to add real photos."
+            exit 0
+          fi
+          echo "::error::wrangler r2 bucket create failed (exit $STATUS) — see output above."
+          exit 1
 
       - name: Ensure KV namespace exists
         id: kv
