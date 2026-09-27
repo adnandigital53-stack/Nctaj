@@ -88,7 +88,7 @@ jobs:
           set +e
           UUID_RE='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 
-          LIST_OUT=$(npx wrangler kv namespace list --json 2>&1); LIST_STATUS=$?
+          LIST_OUT=$(npx wrangler kv namespace list 2>&1); LIST_STATUS=$?
           echo "$LIST_OUT"
           if [ $LIST_STATUS -ne 0 ]; then
             echo "::error::wrangler kv namespace list failed (exit $LIST_STATUS) — see output above."
