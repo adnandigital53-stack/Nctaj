@@ -2,7 +2,7 @@
 export const prerender = false;
 import { env } from 'cloudflare:workers';
 import AdminLayout from '../../../layouts/AdminLayout.astro';
-import { getCategories, getItem, updateItem, deleteItem } from '../../../lib/menu-db';
+import { getCategories, getItem, updateItem, deleteItem, createItem, slugifyUnique } from '../../../lib/menu-db';
 import { sniffImageType } from '../../../lib/image-sniff';
 
 const db = env.DB;
@@ -13,47 +13,84 @@ if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   const action = String(form.get('_action') ?? 'save');
 
-  if (action === 'delete') {
-    await deleteItem(db, id!);
-    return Astro.redirect('/admin?deleted=' + encodeURIComponent(id!));
-  }
+  // A transient D1/R2 hiccup here shouldn't hand the admin Astro's generic
+  // 500 page — this way they land back on the same filled-in form, told to
+  // retry, rather than losing their place over something that isn't their
+  // fault and often isn't permanent.
+  try {
+    if (action === 'delete') {
+      await deleteItem(db, id!);
+      return Astro.redirect('/admin?deleted=' + encodeURIComponent(id!));
+    }
 
-  const name = String(form.get('name') ?? '').trim();
-  const categoryId = String(form.get('categoryId') ?? '');
-  const priceRaw = String(form.get('price') ?? '').trim();
-  const price = priceRaw === '' ? null : Number(priceRaw);
-  const description = String(form.get('description') ?? '').trim();
-  const veg = form.get('veg') === '1';
-  const bestseller = form.get('bestseller') === '1';
-  const available = form.get('available') === '1';
-  const photo = form.get('photo') as File | null;
-
-  if (!name) {
-    error = 'Name is required.';
-  } else if (!categoryId) {
-    error = 'Pick a category.';
-  } else if (priceRaw !== '' && (!Number.isFinite(price) || price! < 0)) {
-    error = 'Price has to be a positive number, or left blank for "Price TBC".';
-  } else {
-    let photoKey: string | null | undefined = undefined; // undefined = leave photo unchanged
-    if (photo && photo.size > 0) {
-      if (photo.size > 8 * 1024 * 1024) {
-        error = 'That photo is over 8MB even after compression — try a different one.';
-      } else {
-        const buffer = await photo.arrayBuffer();
-        const sniffed = sniffImageType(new Uint8Array(buffer.slice(0, 12)));
-        if (!sniffed) {
-          error = "That file doesn't look like a real photo (JPEG/PNG/WebP) — try a different one.";
-        } else {
-          photoKey = `menu/${id}-${Date.now()}.jpg`;
-          await env.MENU_IMAGES.put(photoKey, buffer, { httpMetadata: { contentType: sniffed } });
-        }
+    if (action === 'duplicate') {
+      const original = await getItem(db, id!);
+      if (original) {
+        const name = `${original.name} (Copy)`;
+        const newId = await slugifyUnique(db, name);
+        // Starts hidden (available: false) and without the bestseller badge
+        // — a copy is a starting point to edit, not something that should
+        // go live next to the original with the same name until it's been
+        // told apart. Sharing photo_key is safe: deleteItem never touches
+        // R2 either, so nothing here is more or less orphan-prone than an
+        // item that was never duplicated.
+        await createItem(
+          db,
+          {
+            id: newId,
+            categoryId: original.category_id,
+            name,
+            description: original.description,
+            price: original.price,
+            veg: !!original.veg,
+            bestseller: false,
+            available: false,
+          },
+          original.photo_key,
+        );
+        return Astro.redirect('/admin/items/' + encodeURIComponent(newId));
       }
     }
-    if (!error) {
-      await updateItem(db, id!, { id: id!, categoryId, name, description, price, veg, bestseller, available }, photoKey);
-      return Astro.redirect('/admin?saved=' + encodeURIComponent(id!));
+
+    const name = String(form.get('name') ?? '').trim();
+    const categoryId = String(form.get('categoryId') ?? '');
+    const priceRaw = String(form.get('price') ?? '').trim();
+    const price = priceRaw === '' ? null : Number(priceRaw);
+    const description = String(form.get('description') ?? '').trim();
+    const veg = form.get('veg') === '1';
+    const bestseller = form.get('bestseller') === '1';
+    const available = form.get('available') === '1';
+    const photo = form.get('photo') as File | null;
+
+    if (!name) {
+      error = 'Name is required.';
+    } else if (!categoryId) {
+      error = 'Pick a category.';
+    } else if (priceRaw !== '' && (!Number.isFinite(price) || price! < 0)) {
+      error = 'Price has to be a positive number, or left blank for "Price TBC".';
+    } else {
+      let photoKey: string | null | undefined = undefined; // undefined = leave photo unchanged
+      if (photo && photo.size > 0) {
+        if (photo.size > 8 * 1024 * 1024) {
+          error = 'That photo is over 8MB even after compression — try a different one.';
+        } else {
+          const buffer = await photo.arrayBuffer();
+          const sniffed = sniffImageType(new Uint8Array(buffer.slice(0, 12)));
+          if (!sniffed) {
+            error = "That file doesn't look like a real photo (JPEG/PNG/WebP) — try a different one.";
+          } else {
+            photoKey = `menu/${id}-${Date.now()}.jpg`;
+            await env.MENU_IMAGES.put(photoKey, buffer, { httpMetadata: { contentType: sniffed } });
+          }
+        }
+      }
+      if (!error) {
+        await updateItem(db, id!, { id: id!, categoryId, name, description, price, veg, bestseller, available }, photoKey);
+        return Astro.redirect('/admin?saved=' + encodeURIComponent(id!));
+      }
     }
+  } catch {
+    error = 'Something went wrong saving that — please try again.';
   }
 }
 
@@ -113,7 +150,12 @@ if (!item) return Astro.redirect('/admin?missing=' + encodeURIComponent(id!));
     <a href="/admin" class="btn" style="margin-top:.5rem; margin-left:.5rem;">Cancel</a>
   </form>
 
-  <form method="POST" style="margin-top:1.5rem;" id="delete-form" data-name={item.name}>
+  <form method="POST" style="margin-top:1.5rem; margin-right:.5rem; display:inline-block;">
+    <input type="hidden" name="_action" value="duplicate" />
+    <button type="submit" class="btn">Duplicate</button>
+  </form>
+
+  <form method="POST" style="margin-top:1.5rem; display:inline-block;" id="delete-form" data-name={item.name}>
     <input type="hidden" name="_action" value="delete" />
     <button type="submit" class="btn btn--danger">Delete this item</button>
   </form>

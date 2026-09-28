@@ -35,6 +35,18 @@ function decorateResponse(response: Response, pathname: string, method: string):
   headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   headers.set('Content-Security-Policy', CSP);
+  // Cloudflare Workers only ever serve over HTTPS, so this costs nothing —
+  // it just tells the browser to stop trying plain HTTP on repeat visits.
+  // No `preload` directive: that's a promise to submit the domain to the
+  // browser preload list, a deliberate step for whoever owns the domain to
+  // take, not something to imply from here.
+  headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
+  // Every target="_blank" link on this site already carries rel="noopener",
+  // so severing window.opener via COOP changes nothing observable — it just
+  // closes the same door from the platform side too (isolates this site's
+  // browsing context group from cross-origin popups/openers, the standard
+  // mitigation for XS-Leaks-style timing attacks).
+  headers.set('Cross-Origin-Opener-Policy', 'same-origin');
 
   // Short public cache on the D1-backed pages — every page reads the
   // database on every request now, so a repeat visit within the window

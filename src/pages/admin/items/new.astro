@@ -26,27 +26,35 @@ if (Astro.request.method === 'POST') {
   } else if (priceRaw !== '' && (!Number.isFinite(price) || price! < 0)) {
     error = 'Price has to be a positive number, or left blank for "Price TBC".';
   } else {
-    const id = await slugifyUnique(db, name);
-    let photoKey: string | null = null;
+    // A transient D1/R2 hiccup here shouldn't hand the admin Astro's
+    // generic 500 page — this way they land back on the same filled-in
+    // form, told to retry, rather than losing their place and the photo
+    // they just picked over something that isn't their fault.
+    try {
+      const id = await slugifyUnique(db, name);
+      let photoKey: string | null = null;
 
-    if (photo && photo.size > 0) {
-      if (photo.size > 8 * 1024 * 1024) {
-        error = 'That photo is over 8MB even after compression — try a different one.';
-      } else {
-        const buffer = await photo.arrayBuffer();
-        const sniffed = sniffImageType(new Uint8Array(buffer.slice(0, 12)));
-        if (!sniffed) {
-          error = "That file doesn't look like a real photo (JPEG/PNG/WebP) — try a different one.";
+      if (photo && photo.size > 0) {
+        if (photo.size > 8 * 1024 * 1024) {
+          error = 'That photo is over 8MB even after compression — try a different one.';
         } else {
-          photoKey = `menu/${id}-${Date.now()}.jpg`;
-          await env.MENU_IMAGES.put(photoKey, buffer, { httpMetadata: { contentType: sniffed } });
+          const buffer = await photo.arrayBuffer();
+          const sniffed = sniffImageType(new Uint8Array(buffer.slice(0, 12)));
+          if (!sniffed) {
+            error = "That file doesn't look like a real photo (JPEG/PNG/WebP) — try a different one.";
+          } else {
+            photoKey = `menu/${id}-${Date.now()}.jpg`;
+            await env.MENU_IMAGES.put(photoKey, buffer, { httpMetadata: { contentType: sniffed } });
+          }
         }
       }
-    }
 
-    if (!error) {
-      await createItem(db, { id, categoryId, name, description, price, veg, bestseller, available: true }, photoKey);
-      return Astro.redirect('/admin?added=' + encodeURIComponent(id));
+      if (!error) {
+        await createItem(db, { id, categoryId, name, description, price, veg, bestseller, available: true }, photoKey);
+        return Astro.redirect('/admin?added=' + encodeURIComponent(id));
+      }
+    } catch {
+      error = 'Something went wrong saving that — please try again.';
     }
   }
 }

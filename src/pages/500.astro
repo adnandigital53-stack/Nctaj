@@ -1,0 +1,26 @@
+---
+import Base from '../layouts/Base.astro';
+
+// Astro's own custom-error-page convention (matches 404.astro) — rendered
+// whenever a page throws instead of responding normally. Base.astro's own
+// D1 reads (getMenuStatus, getPriceRange) already fail closed via .catch(),
+// so reusing it here can't itself be the thing that throws a second time.
+export const prerender = false;
+Astro.response.status = 500;
+---
+<Base path="/500" title="Something went wrong" description="Something broke on our end — try again in a moment, or call us directly." noindex>
+  <section class="section page-head">
+    <div class="wrap wrap--narrow" style="text-align: center;">
+      <p class="eyebrow">500</p>
+      <h1>Kitchen's having a moment</h1>
+      <p class="lede" style="margin-bottom: 2rem;">
+        Something broke on our end, not yours. Try again in a moment — or if
+        you're mid-order, it's faster to just call it in.
+      </p>
+      <div class="grid stagger" style="gap: 1rem; justify-content: center; display: flex; flex-wrap: wrap;">
+        <a class="btn btn--primary" href="/">Home</a>
+        <a class="btn btn--ghost" href="/order">Order Now</a>
+      </div>
+    </div>
+  </section>
+</Base>

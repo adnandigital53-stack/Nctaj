@@ -520,5 +520,18 @@ const structuredData = base
         else document.addEventListener('DOMContentLoaded', init, { once: true });
       })();
     </script>
+
+    {/* Dev-only skip: astro dev's own asset paths and rebuild cycle aren't
+        what public/sw.js's caching rules are written for (they assume the
+        built, content-hashed /_astro/* output), and a service worker
+        persists in the browser well past the tab that registered it — not
+        something to leave behind as a side effect of local development. */}
+    <script is:inline define:vars={{ isProd: import.meta.env.PROD }}>
+      if (isProd && 'serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
   </body>
 </html>

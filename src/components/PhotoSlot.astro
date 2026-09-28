@@ -5,11 +5,25 @@
 // A single plain <img>, not astro:assets, because admin-uploaded photos
 // aren't known at build time and so can't go through Astro's build-time
 // image optimizer; the seed photos are already pre-sized for the web.
-const { src = null, alt = '', mark = '' } = Astro.props;
+//
+// `eager`: the first row of a grid is already in the viewport on load, so
+// loading="lazy" there does the opposite of what it's for — it makes the
+// browser deprioritize fetching what's likely the page's own Largest
+// Contentful Paint candidate. Callers pass this in for the first few items
+// only; everything below the fold stays lazy.
+const { src = null, alt = '', mark = '', eager = false } = Astro.props;
 ---
 <div class="photo">
   {src ? (
-    <img src={`/uploads/menu/${src}.jpg`} alt={alt} loading="lazy" decoding="async" width="640" height="480" />
+    <img
+      src={`/uploads/menu/${src}.jpg`}
+      alt={alt}
+      loading={eager ? 'eager' : 'lazy'}
+      fetchpriority={eager ? 'high' : undefined}
+      decoding="async"
+      width="640"
+      height="480"
+    />
   ) : (
     <Fragment>
       <span class="photo__mark" aria-hidden="true">{mark}</span>

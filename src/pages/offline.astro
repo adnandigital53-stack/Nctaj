@@ -1,0 +1,36 @@
+---
+import Base from '../layouts/Base.astro';
+import site from '../data/site.json';
+
+// Prerendered — this is the service worker's fallback for a failed
+// navigation (public/sw.js), so it has to work with no network at all. A
+// dynamic page here would need the very D1 read it can't make; this one is
+// baked to static HTML at build time (env.DB is only touched once, now,
+// not on every request) and never touches the database again after that.
+export const prerender = true;
+---
+<Base
+  path="/offline"
+  title="You're offline"
+  description="No connection right now — try again, or call us directly."
+  noindex
+>
+  <section class="section page-head">
+    <div class="wrap wrap--narrow" style="text-align: center;">
+      <p class="eyebrow">No connection</p>
+      <h1>You're offline</h1>
+      <p class="lede" style="margin-bottom: 2rem;">
+        This page didn't make it over the network. Once you're back online,
+        try again — or call in the order directly.
+      </p>
+      <div class="grid stagger" style="gap: 1rem; justify-content: center; display: flex; flex-wrap: wrap;">
+        <button type="button" class="btn btn--primary" onclick="location.reload()">Try again</button>
+        {site.contact.phone[0] && (
+          <a class="btn btn--ghost" href={`tel:${site.contact.phone[0].dial}`}>
+            Call {site.contact.phone[0].display}
+          </a>
+        )}
+      </div>
+    </div>
+  </section>
+</Base>

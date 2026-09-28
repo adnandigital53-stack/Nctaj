@@ -11,34 +11,42 @@ if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   const action = String(form.get('_action') ?? '');
 
-  if (action === 'create') {
-    const name = String(form.get('name') ?? '').trim();
-    const blurb = String(form.get('blurb') ?? '').trim();
-    if (!name) {
-      flash = { kind: 'error', text: 'Category name is required.' };
-    } else {
-      await createCategory(db, { name, blurb });
-      flash = { kind: 'ok', text: `Added "${name}".` };
+  // A transient D1 hiccup on a write shouldn't hand the admin Astro's
+  // generic 500 page — this way they land back on the same form, told to
+  // retry, rather than losing their place over something that isn't their
+  // fault and often isn't permanent.
+  try {
+    if (action === 'create') {
+      const name = String(form.get('name') ?? '').trim();
+      const blurb = String(form.get('blurb') ?? '').trim();
+      if (!name) {
+        flash = { kind: 'error', text: 'Category name is required.' };
+      } else {
+        await createCategory(db, { name, blurb });
+        flash = { kind: 'ok', text: `Added "${name}".` };
+      }
+    } else if (action === 'update') {
+      const id = String(form.get('id') ?? '');
+      const name = String(form.get('name') ?? '').trim();
+      const blurb = String(form.get('blurb') ?? '').trim();
+      if (!name) {
+        flash = { kind: 'error', text: 'Category name is required.' };
+      } else {
+        await updateCategory(db, id, { name, blurb });
+        flash = { kind: 'ok', text: `Saved "${name}".` };
+      }
+    } else if (action === 'delete') {
+      const id = String(form.get('id') ?? '');
+      const ok = await deleteCategory(db, id);
+      flash = ok
+        ? { kind: 'ok', text: 'Category deleted.' }
+        : { kind: 'error', text: "Can't delete a category that still has items in it — move or delete those first." };
+    } else if (action === 'move-up' || action === 'move-down') {
+      const id = String(form.get('id') ?? '');
+      await moveCategory(db, id, action === 'move-up' ? 'up' : 'down');
     }
-  } else if (action === 'update') {
-    const id = String(form.get('id') ?? '');
-    const name = String(form.get('name') ?? '').trim();
-    const blurb = String(form.get('blurb') ?? '').trim();
-    if (!name) {
-      flash = { kind: 'error', text: 'Category name is required.' };
-    } else {
-      await updateCategory(db, id, { name, blurb });
-      flash = { kind: 'ok', text: `Saved "${name}".` };
-    }
-  } else if (action === 'delete') {
-    const id = String(form.get('id') ?? '');
-    const ok = await deleteCategory(db, id);
-    flash = ok
-      ? { kind: 'ok', text: 'Category deleted.' }
-      : { kind: 'error', text: "Can't delete a category that still has items in it — move or delete those first." };
-  } else if (action === 'move-up' || action === 'move-down') {
-    const id = String(form.get('id') ?? '');
-    await moveCategory(db, id, action === 'move-up' ? 'up' : 'down');
+  } catch {
+    flash = { kind: 'error', text: 'Something went wrong saving that — please try again.' };
   }
 }
 

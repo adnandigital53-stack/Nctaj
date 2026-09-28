@@ -11,25 +11,36 @@ if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   const action = String(form.get('_action') ?? '');
 
-  if (action === 'delete') {
-    const id = String(form.get('id') ?? '');
-    await deleteItem(db, id);
-    flash = { kind: 'ok', text: `Deleted "${id}".` };
-  } else if (action === 'toggle-available') {
-    const id = String(form.get('id') ?? '');
-    const makeAvailable = form.get('available') === '1';
-    await db.prepare('UPDATE items SET available = ? WHERE id = ?').bind(makeAvailable ? 1 : 0, id).run();
-    flash = { kind: 'ok', text: makeAvailable ? `"${id}" is visible again.` : `"${id}" hidden from the site.` };
-  } else if (action === 'set-status') {
-    const status = form.get('status') === 'live' ? 'live' : 'placeholder';
-    await setMenuStatus(db, status);
-    flash = {
-      kind: 'ok',
-      text: status === 'live' ? 'Site is live — the preview banner is off.' : 'Back to placeholder — the preview banner is on.',
-    };
-  } else if (action === 'move-up' || action === 'move-down') {
-    const id = String(form.get('id') ?? '');
-    await moveItem(db, id, action === 'move-up' ? 'up' : 'down');
+  // A transient D1 hiccup on a write shouldn't hand the admin Astro's
+  // generic 500 page — this way they land back on the dashboard, told to
+  // retry, rather than losing their place over something that isn't their
+  // fault and often isn't permanent.
+  try {
+    if (action === 'delete') {
+      const id = String(form.get('id') ?? '');
+      await deleteItem(db, id);
+      flash = { kind: 'ok', text: `Deleted "${id}".` };
+    } else if (action === 'toggle-available') {
+      const id = String(form.get('id') ?? '');
+      const makeAvailable = form.get('available') === '1';
+      // updated_at too, same as a full edit via updateItem() — otherwise
+      // the "last edited" column below would silently ignore visibility
+      // toggles, which are a real change to what the item does on the site.
+      await db.prepare("UPDATE items SET available = ?, updated_at = datetime('now') WHERE id = ?").bind(makeAvailable ? 1 : 0, id).run();
+      flash = { kind: 'ok', text: makeAvailable ? `"${id}" is visible again.` : `"${id}" hidden from the site.` };
+    } else if (action === 'set-status') {
+      const status = form.get('status') === 'live' ? 'live' : 'placeholder';
+      await setMenuStatus(db, status);
+      flash = {
+        kind: 'ok',
+        text: status === 'live' ? 'Site is live — the preview banner is off.' : 'Back to placeholder — the preview banner is on.',
+      };
+    } else if (action === 'move-up' || action === 'move-down') {
+      const id = String(form.get('id') ?? '');
+      await moveItem(db, id, action === 'move-up' ? 'up' : 'down');
+    }
+  } catch {
+    flash = { kind: 'error', text: 'Something went wrong saving that — please try again.' };
   }
 }
 
@@ -43,6 +54,24 @@ for (const item of items) {
 }
 
 const inr = (n: number | null) => (n == null ? 'TBC' : `₹${n}`);
+
+// items.updated_at is a SQLite datetime('now') string ("YYYY-MM-DD
+// HH:MM:SS", UTC, no offset) — new Date() on that exact shape is parsed as
+// local time in some engines, not UTC, so the space->T + trailing Z is
+// there to force correct UTC parsing rather than trust the ambiguous form.
+const relativeTime = (sqliteUtc: string): string => {
+  const ms = Date.now() - new Date(sqliteUtc.replace(' ', 'T') + 'Z').getTime();
+  const mins = Math.floor(ms / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return `${Math.floor(months / 12)}y ago`;
+};
 ---
 <AdminLayout title="Dashboard">
   <h1>Menu</h1>
@@ -114,6 +143,8 @@ const inr = (n: number | null) => (n == null ? 'TBC' : `₹${n}`);
                 <td>
                   {item.name}
                   {!!item.bestseller && <span class="pill" style="background: rgba(232,163,61,.15); color: var(--saffron); margin-left: .4rem;">★</span>}
+                  <br />
+                  <span style="font-size:.75rem; color:var(--cream-muted);">edited {relativeTime(item.updated_at)}</span>
                 </td>
                 <td>{inr(item.price)}</td>
                 <td><span class={`pill ${item.veg ? 'pill--veg' : 'pill--nonveg'}`}>{item.veg ? 'Veg' : 'Non-veg'}</span></td>

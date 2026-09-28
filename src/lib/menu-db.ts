@@ -41,6 +41,7 @@ interface ItemRow {
   bestseller: number;
   available: number;
   sort_order: number;
+  updated_at: string;
 }
 
 interface CategoryRow {

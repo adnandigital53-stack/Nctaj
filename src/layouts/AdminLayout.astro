@@ -81,6 +81,10 @@ const { title = 'Admin' } = Astro.props;
          public site's own branded :focus-visible (src/styles/global.css). */
       :focus-visible { outline: 2px solid var(--saffron); outline-offset: 2px; border-radius: 2px; }
       .field { margin-bottom: 1.1rem; }
+      .char-counter { display: block; font-size: .75rem; color: var(--cream-muted); margin-top: .3rem; text-align: right; }
+      /* Same accessible red as .btn--danger/.pill--nonveg above — not
+         var(--nonveg) itself, which fails AA as a text color here. */
+      .char-counter.is-low { color: #f3b9b0; }
       .row { display: flex; gap: 1rem; flex-wrap: wrap; }
       .row > .field { flex: 1 1 200px; }
       .check { display: flex; align-items: center; gap: .5rem; font-size: .9rem; color: var(--cream); }
@@ -132,6 +136,13 @@ const { title = 'Admin' } = Astro.props;
          that actually need it, rather than every column shrinking evenly. */
       @media (max-width: 600px) {
         .thumb { display: none; }
+      }
+      /* Near-instant, not animation:none — the dismiss script waits on this
+         animation's `animationend` event to remove the element (see the
+         script below), which never fires without an animation running at
+         all. Same convention as the public site's own reduced-motion rule. */
+      @media (prefers-reduced-motion: reduce) {
+        .flash, .flash.is-leaving { animation-duration: 0.01ms; }
       }
     </style>
   </head>
@@ -211,6 +222,24 @@ const { title = 'Admin' } = Astro.props;
         el.addEventListener('mouseenter', () => clearTimeout(timer));
         el.addEventListener('mouseleave', schedule);
         schedule();
+      });
+
+      // Live character counter for every maxlength field, admin-wide — one
+      // generic pass here instead of per-field markup on every page, so a
+      // new maxlength field anywhere just gets one for free.
+      document.querySelectorAll('input[maxlength], textarea[maxlength]').forEach((el) => {
+        const max = Number(el.getAttribute('maxlength'));
+        if (!max) return;
+        const counter = document.createElement('span');
+        counter.className = 'char-counter';
+        el.insertAdjacentElement('afterend', counter);
+        const update = () => {
+          const remaining = max - el.value.length;
+          counter.textContent = `${el.value.length}/${max}`;
+          counter.classList.toggle('is-low', remaining <= 10);
+        };
+        el.addEventListener('input', update);
+        update();
       });
     </script>
   </body>

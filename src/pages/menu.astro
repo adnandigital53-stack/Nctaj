@@ -51,14 +51,20 @@ const { menu, error: menuError } = await getMenuSafe(env.DB);
         <p class="visually-hidden" role="status" aria-live="polite" id="filter-status"></p>
         <p class="menu-search__empty" id="menu-search-empty" hidden>No dishes match your search.</p>
 
-        {menu.categories.filter((cat) => cat.items.some((i) => i.available)).map((cat) => (
+        {menu.categories.filter((cat) => cat.items.some((i) => i.available)).map((cat, catIndex) => (
           <section class="menu-category" id={cat.id} data-category>
             <div class="menu-category__head">
               <p class="eyebrow">{cat.name}</p>
               <p class="menu-category__blurb">{cat.blurb}</p>
             </div>
             <div class="grid grid--3">
-              {cat.items.filter((i) => i.available).map((item, i) => <MenuItem item={item} index={i} />)}
+              {cat.items.filter((i) => i.available).map((item, i) => (
+                // Only the very first category's first row is actually
+                // above the fold on load — every other category's "first
+                // row" is below it, so only this combination should skip
+                // loading="lazy" (see PhotoSlot's `eager` prop).
+                <MenuItem item={item} index={i} eager={catIndex === 0 && i < 3} />
+              ))}
             </div>
           </section>
         ))}
