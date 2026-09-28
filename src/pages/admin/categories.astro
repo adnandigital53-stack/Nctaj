@@ -45,7 +45,11 @@ if (Astro.request.method === 'POST') {
       const id = String(form.get('id') ?? '');
       await moveCategory(db, id, action === 'move-up' ? 'up' : 'down');
     }
-  } catch {
+  } catch (e) {
+    // Logged, not just swallowed — otherwise a real failure here is
+    // invisible to everyone except the admin staring at the generic
+    // message, with nothing to go on in Cloudflare's own Worker logs.
+    console.error('categories POST failed:', e);
     flash = { kind: 'error', text: 'Something went wrong saving that — please try again.' };
   }
 }

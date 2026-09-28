@@ -7,6 +7,10 @@ import Base from '../layouts/Base.astro';
 // so reusing it here can't itself be the thing that throws a second time.
 export const prerender = false;
 Astro.response.status = 500;
+// Astro hands the actual thrown error to a custom 500 page as a prop —
+// logging it here is the only trace of what broke once the admin's own
+// try/catch (which handles the writes it can name) isn't what caught this.
+console.error('500 page rendered for an unhandled error:', Astro.props.error);
 ---
 <Base path="/500" title="Something went wrong" description="Something broke on our end — try again in a moment, or call us directly." noindex>
   <section class="section page-head">
