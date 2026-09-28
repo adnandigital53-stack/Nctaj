@@ -45,5 +45,15 @@
   // free tier, no setup cost. Real id, same provisioning workflow as D1 above.
   "kv_namespaces": [
     { "binding": "SESSION", "id": "12f74d82e7cb4ea48ed8f48423e968f2" }
-  ]
+  ],
+
+  // --- Web Push ------------------------------------------------------------
+  // The VAPID public key is exactly that — public, sent to every visitor's
+  // browser as the applicationServerKey when they subscribe (src/components
+  // /Footer.astro) — safe to commit. Its matching private key is the secret
+  // half and never goes here; it's VAPID_PRIVATE_KEY_JWK in .dev.vars
+  // locally and `wrangler secret put VAPID_PRIVATE_KEY_JWK` in production.
+  "vars": {
+    "VAPID_PUBLIC_KEY": "BLymN1FN64s3b026DQNYvogKS-Cwv_GewVnOpAPw7-VbdKRLz4VKAo56WeW0McrEbUU1KVEwJ3U73HH_SN4ugjM"
+  }
 }

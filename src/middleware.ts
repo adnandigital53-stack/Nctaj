@@ -48,25 +48,19 @@ function decorateResponse(response: Response, pathname: string, method: string):
   // mitigation for XS-Leaks-style timing attacks).
   headers.set('Cross-Origin-Opener-Policy', 'same-origin');
 
-  // Short public cache on the D1-backed pages — every page reads the
-  // database on every request now, so a repeat visit within the window
-  // (or a crawler re-fetching) doesn't re-hit D1 for content that hasn't
-  // changed. stale-while-revalidate keeps it from ever feeling stale for
-  // long. Skipped for admin (never cache authenticated responses),
-  // /uploads (already sets its own long-lived immutable cache), non-GET,
-  // non-200s, and anything a route already set its own cache-control for.
-  const cacheable =
-    method === 'GET' &&
-    response.status === 200 &&
-    !pathname.startsWith('/admin') &&
+  // Every page on the site — public or admin — is a live D1 read on every
+  // request; explicit no-store rather than omitting the header, so neither
+  // an intermediate cache nor a browser's back-forward-cache holds onto a
+  // response a visitor should never see twice. A visitor opening the site
+  // always gets what's actually in the database right now, not whatever
+  // was true up to a couple of minutes ago. Skipped only for /uploads,
+  // which already sets its own long-lived immutable cache (those files are
+  // genuinely immutable — a new photo gets a new key, never overwrites an
+  // old one), and anything a route already set its own cache-control for.
+  const shouldNoStore =
     !pathname.startsWith('/uploads') &&
     !headers.has('cache-control');
-  if (cacheable) {
-    headers.set('cache-control', 'public, max-age=10, stale-while-revalidate=120');
-  } else if (pathname.startsWith('/admin')) {
-    // Explicit no-store rather than just omitting the header — this is
-    // authenticated content (item prices/photos, the login form), so no
-    // intermediate cache or browser back-forward-cache should retain it.
+  if (shouldNoStore) {
     headers.set('cache-control', 'no-store, private');
   }
 

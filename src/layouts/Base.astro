@@ -529,7 +529,18 @@ const structuredData = base
     <script is:inline define:vars={{ isProd: import.meta.env.PROD }}>
       if (isProd && 'serviceWorker' in navigator) {
         window.addEventListener('load', () => {
+          // A controller already present means this tab was already being
+          // served by an earlier deploy's service worker — the new one
+          // taking over (sw.js's skipWaiting + clients.claim) is a real
+          // update, worth a one-time reload so an open tab doesn't sit on
+          // stale JS/CSS until the visitor happens to navigate again. On a
+          // first-ever visit there's no prior controller, so this is
+          // skipped — nothing to refresh away from.
+          const hadController = !!navigator.serviceWorker.controller;
           navigator.serviceWorker.register('/sw.js').catch(() => {});
+          if (hadController) {
+            navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), { once: true });
+          }
         });
       }
     </script>

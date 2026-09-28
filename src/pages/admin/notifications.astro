@@ -1,0 +1,95 @@
+---
+export const prerender = false;
+import { env } from 'cloudflare:workers';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { sendWebPush } from '../../lib/web-push';
+import site from '../../data/site.json';
+
+const db = env.DB;
+let flash: { kind: 'ok' | 'error'; text: string } | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const title = String(form.get('title') ?? '').trim();
+  const body = String(form.get('body') ?? '').trim();
+  const url = String(form.get('url') ?? '').trim() || '/';
+
+  if (!title || !body) {
+    flash = { kind: 'error', text: 'Title and message are both required.' };
+  } else {
+    // A transient failure here shouldn't hand the admin Astro's generic 500
+    // page — same reasoning as every other admin write this session.
+    try {
+      const { results: subs } = await db
+        .prepare('SELECT endpoint, p256dh, auth FROM push_subscriptions')
+        .all<{ endpoint: string; p256dh: string; auth: string }>();
+
+      const vapid = {
+        publicKey: env.VAPID_PUBLIC_KEY,
+        privateKeyJwk: JSON.parse(env.VAPID_PRIVATE_KEY_JWK) as JsonWebKey,
+        // Just a contact identifier a push service could use if this sender
+        // misbehaves — doesn't need to be an email, an https: URL works too.
+        subject: site.siteUrl ?? 'https://example.com',
+      };
+
+      const outcomes = await Promise.allSettled(subs.map((sub) => sendWebPush(sub, vapid, { title, body, url })));
+
+      let sent = 0;
+      const expired: string[] = [];
+      outcomes.forEach((outcome, i) => {
+        if (outcome.status !== 'fulfilled') return;
+        if (outcome.value.ok) sent++;
+        // 404/410 is the push service telling us this subscription is gone
+        // for good — not a "try again" failure, so it's pruned rather than
+        // just logged.
+        else if (outcome.value.status === 404 || outcome.value.status === 410) expired.push(subs[i].endpoint);
+      });
+
+      if (expired.length) {
+        await db.batch(expired.map((endpoint) => db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').bind(endpoint)));
+      }
+
+      flash = subs.length
+        ? {
+            kind: 'ok',
+            text: `Sent to ${sent} of ${subs.length} subscriber${subs.length === 1 ? '' : 's'}.`
+              + (expired.length ? ` Removed ${expired.length} expired subscription${expired.length === 1 ? '' : 's'}.` : ''),
+          }
+        : { kind: 'error', text: 'No one has subscribed yet — nothing to send.' };
+    } catch (e) {
+      console.error('notification send failed:', e);
+      flash = { kind: 'error', text: 'Something went wrong sending that — please try again.' };
+    }
+  }
+}
+
+const { results: countRows } = await db.prepare('SELECT COUNT(*) as n FROM push_subscriptions').all<{ n: number }>();
+const subscriberCount = countRows[0]?.n ?? 0;
+---
+<AdminLayout title="Notifications">
+  <h1>Send a notification</h1>
+  <p class="sub">
+    Goes to everyone who's ticked "Notify me" on the site —
+    {subscriberCount} subscriber{subscriberCount === 1 ? '' : 's'} right now.
+  </p>
+
+  {flash && <div class={`flash flash--${flash.kind}`}>{flash.text}</div>}
+
+  <form method="POST" class="card">
+    <div class="field">
+      <label for="title">Title</label>
+      <input type="text" id="title" name="title" required maxlength="60" placeholder="New at NC Taj" />
+    </div>
+    <div class="field">
+      <label for="body">Message</label>
+      <textarea id="body" name="body" rows="3" required maxlength="180" placeholder="Try our new Palak Chicken — out now."></textarea>
+    </div>
+    <div class="field">
+      <label for="url">Link <span style="opacity:.6;">(where tapping the notification goes — defaults to the homepage)</span></label>
+      <input type="text" id="url" name="url" maxlength="200" placeholder="/menu" />
+    </div>
+    <button type="submit" class="btn btn--primary" disabled={subscriberCount === 0}>
+      {subscriberCount === 0 ? 'No subscribers yet' : `Send to ${subscriberCount} subscriber${subscriberCount === 1 ? '' : 's'}`}
+    </button>
+  </form>
+</AdminLayout>

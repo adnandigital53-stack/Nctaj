@@ -57,3 +57,38 @@ self.addEventListener('fetch', (event) => {
     );
   }
 });
+
+// The payload arrives already decrypted by the browser (RFC 8291 decryption
+// happens before this handler ever runs) — src/lib/web-push.ts on the
+// server side is what encrypted it, this is just display.
+self.addEventListener('push', (event) => {
+  let data = { title: 'NC Taj', body: '', url: '/' };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch {
+    // Not JSON, or no payload at all — still show *something* rather than
+    // silently drop a notification the admin explicitly sent.
+    data.body = event.data?.text() || 'You have a new update.';
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      data: { url: data.url },
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (new URL(client.url).pathname === targetUrl && 'focus' in client) return client.focus();
+      }
+      return self.clients.openWindow?.(targetUrl);
+    }),
+  );
+});

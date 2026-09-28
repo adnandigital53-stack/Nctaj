@@ -1,4 +1,14 @@
-# Copy this file to .dev.vars (gitignored) and fill in a real value.
+# Copy this file to .dev.vars (gitignored) and fill in real values.
 # Used by `astro dev` / `wrangler dev` to simulate Worker secrets locally —
-# in production this is set via `wrangler secret put ADMIN_PASSWORD` instead.
+# in production these are set via `wrangler secret put <NAME>` instead.
 ADMIN_PASSWORD="changeme"
+
+# The private half of the VAPID keypair used to sign Web Push notifications.
+# Its public half lives in wrangler.jsonc (safe to commit — it's meant to be
+# public). Generate a real pair with:
+#   node -e 'crypto.subtle.generateKey({name:"ECDSA",namedCurve:"P-256"},true,["sign","verify"]).then(async k=>{console.log("public:",Buffer.from(await crypto.subtle.exportKey("raw",k.publicKey)).toString("base64url"));console.log("private jwk:",JSON.stringify(await crypto.subtle.exportKey("jwk",k.privateKey)))})'
+# Put "public" in wrangler.jsonc's vars.VAPID_PUBLIC_KEY, "private jwk" here
+# (and as the `wrangler secret put VAPID_PRIVATE_KEY_JWK` value in production
+# — same keypair in both places, or subscriptions made in one won't decrypt
+# notifications sent from the other).
+VAPID_PRIVATE_KEY_JWK='{"key_ops":["sign"],"ext":true,"kty":"EC","x":"changeme","y":"changeme","crv":"P-256","d":"changeme"}'

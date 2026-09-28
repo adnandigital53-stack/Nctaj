@@ -161,8 +161,80 @@ cached opportunistically. It never touches `/admin/*` at all. Registration
 (in `Base.astro`) is gated to production builds, so it can't interfere with
 `astro dev`.
 
+Every response also carries `Cache-Control: no-store` (except `/uploads/*`,
+which is content-hashed and safe to cache forever) — so a returning visitor
+never sees a stale menu, price, or "closed" state served from their
+browser's own HTTP cache. If a new service worker takes over an already-open
+tab (a real deploy, not a first visit), the page reloads itself once to pick
+up the new code, rather than silently running stale JS until the next manual
+refresh.
+
 `manifest.webmanifest` supports "add to home screen" with shortcuts to Order
 and Menu.
+
+### Push notifications
+
+Visitors can tick "Notify me about new dishes & offers" in the footer to
+subscribe; `/admin/notifications` lets the admin compose a title, message,
+and optional link and send it to everyone subscribed. There's no
+third-party service (OneSignal, Firebase, etc.) involved — it's a
+self-hosted Web Push implementation using only the browser's native Push
+API and VAPID (RFC 8292), so there's nothing to sign up for and no external
+account depends on this working.
+
+- `src/lib/web-push.ts` — hand-written encryption (RFC 8291) and VAPID JWT
+  signing, using only Cloudflare Workers' `crypto.subtle` (no npm
+  dependency; `web-push`/`http_ece` aren't Workers-compatible). Cross-checked
+  against those two packages' real source as an independent oracle, and
+  proven end-to-end by decrypting a real notification sent through the
+  actual admin form against a local fake push endpoint — the plaintext
+  came back byte-for-byte correct.
+- `push_subscriptions` (D1) stores one row per subscribed browser.
+  `/api/push/subscribe` and `/api/push/unsubscribe` manage rows;
+  `/admin/notifications` prunes a subscription automatically if the push
+  service reports it's gone (410/404) rather than erroring on it forever.
+- **What's verified vs. not:** the crypto, the wire format, and the
+  service worker's `showNotification`/`notificationclick` display logic
+  are all tested directly. What can't be tested from this sandbox is a real
+  phone/browser subscribing through Google's or Mozilla's actual push
+  infrastructure and receiving a real notification — that network path is
+  blocked here. After deploying, set the real secret and test on an actual
+  device:
+
+  ```bash
+  npx wrangler secret put VAPID_PRIVATE_KEY_JWK
+  ```
+
+  (paste the JWK value from your local `.dev.vars` — the matching public
+  key is already committed in `wrangler.jsonc`, so don't regenerate the
+  pair, just carry the existing private key into production). Then open the
+  live site on a phone, tick the checkbox, and send a test notification from
+  `/admin/notifications`.
+
+### Turning this into an "app"
+
+This is already a fully installable PWA — "Add to Home Screen" on Android
+or "Add to Dock"/"Add to Home Screen" on iOS/desktop gives it its own icon,
+launches without browser chrome, and works offline (see above). For most
+purposes that already *is* "the app."
+
+Actually listing it on the Google Play Store or Apple App Store is a
+separate, larger effort this repo can't finish on its own, because it
+needs accounts only the site owner can create:
+
+- **Google Play**: wrap this PWA as a Trusted Web Activity (via
+  [Bubblewrap](https://github.com/GoogleChromeLabs/bubblewrap) or
+  [PWABuilder](https://www.pwabuilder.com/)) and submit it through a Google
+  Play Developer account (one-time $25 fee).
+- **Apple App Store**: iOS doesn't support TWAs; it'd need a thin native
+  wrapper (e.g. Capacitor) around this same site, submitted through an
+  Apple Developer Program account ($99/year), and is a materially bigger
+  effort than the Android path.
+
+Both require the account holder's own identity/payment details to create,
+so that first step has to happen outside this codebase. Once an account
+exists, ask and this can be picked back up — the packaging step itself is
+mechanical.
 
 ## Security
 
@@ -170,9 +242,9 @@ and Menu.
   `ADMIN_PASSWORD`), not a session table — see `src/lib/auth.ts`.
 - `src/middleware.ts` sets CSP, HSTS, `X-Frame-Options`,
   `Cross-Origin-Opener-Policy`, `Referrer-Policy` and `Permissions-Policy` on
-  every response, and a short public cache (10s + 120s stale-while-revalidate)
-  on D1-backed pages so a burst of traffic doesn't hit the database on every
-  single request.
+  every response, and `Cache-Control: no-store` on every D1-backed page (see
+  PWA & offline, above) so nothing is ever served stale from a visitor's own
+  browser cache.
 - Uploaded photos are sniffed by magic bytes server-side
   (`src/lib/image-sniff.ts`), never trusted by declared MIME type alone.
 

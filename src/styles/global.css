@@ -952,6 +952,15 @@ body { padding-bottom: 0; }
 
 .footer__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
 
+.footer__subscribe {
+  display: flex; align-items: center; gap: .6rem; min-height: 44px;
+  margin-top: 1.25rem; color: var(--cream); cursor: pointer; width: fit-content;
+}
+.footer__subscribe input[type="checkbox"] {
+  width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--saffron); cursor: pointer;
+}
+.footer__subscribe-status { margin-top: -.5rem; margin-bottom: 1rem; font-size: 0.8125rem; color: var(--saffron); }
+
 .footer__bottom {
   margin-top: 3rem;
   padding-top: 1.5rem;

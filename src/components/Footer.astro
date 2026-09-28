@@ -1,7 +1,9 @@
 ---
+import { env } from 'cloudflare:workers';
 import site from '../data/site.json';
 import OpenStatus from './OpenStatus.astro';
 const year = new Date().getFullYear();
+const vapidPublicKey = env.VAPID_PUBLIC_KEY;
 ---
 <footer class="footer">
   <div class="wrap">
@@ -12,6 +14,11 @@ const year = new Date().getFullYear();
           Serving biryani and North Indian since {site.established}. Delivery only —
           find us on Swiggy, Zomato and Magicpin.
         </p>
+        <label class="footer__subscribe">
+          <input type="checkbox" id="push-subscribe-toggle" data-vapid-key={vapidPublicKey} />
+          <span>Notify me about new dishes &amp; offers</span>
+        </label>
+        <p class="footer__subscribe-status" id="push-subscribe-status" hidden></p>
       </div>
 
       <div>
@@ -53,4 +60,110 @@ const year = new Date().getFullYear();
       </span>
     </div>
   </div>
+
+  <script is:inline>
+    // Footer isn't transition:persist'd (unlike Header/OrderBar in
+    // Base.astro), so it's a fresh DOM node on every soft nav — but the
+    // change listener is still bound via delegation on `document` (which
+    // never gets replaced) rather than directly on the checkbox, so it
+    // doesn't need re-binding, and the checked state is re-synced on every
+    // astro:page-load rather than assumed to persist.
+    (() => {
+      if (window.__nctajPush) return;
+      window.__nctajPush = true;
+
+      const urlBase64ToUint8Array = (base64String) => {
+        const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const raw = atob(base64);
+        return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+      };
+
+      const setStatus = (text) => {
+        const el = document.getElementById('push-subscribe-status');
+        if (!el) return;
+        el.textContent = text;
+        el.hidden = !text;
+      };
+
+      const supported = 'serviceWorker' in navigator && 'PushManager' in window;
+
+      async function syncCheckboxState() {
+        const checkbox = document.getElementById('push-subscribe-toggle');
+        if (!checkbox) return;
+        if (!supported) {
+          checkbox.disabled = true;
+          return;
+        }
+        try {
+          const registration = await navigator.serviceWorker.getRegistration();
+          const sub = await registration?.pushManager.getSubscription();
+          checkbox.checked = !!sub;
+        } catch {
+          // Leave it unchecked — a stale "subscribed" checkbox that doesn't
+          // reflect reality is worse than one that just looks unset.
+        }
+      }
+
+      async function subscribe(checkbox) {
+        if (Notification.permission === 'denied') {
+          setStatus("Notifications are blocked for this site in your browser's settings.");
+          checkbox.checked = false;
+          return;
+        }
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          checkbox.checked = false;
+          return;
+        }
+        try {
+          const registration = await navigator.serviceWorker.register('/sw.js');
+          await navigator.serviceWorker.ready;
+          const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(checkbox.dataset.vapidKey),
+          });
+          await fetch('/api/push/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(subscription.toJSON()),
+          });
+          setStatus('');
+        } catch (e) {
+          checkbox.checked = false;
+          setStatus("Couldn't turn on notifications — please try again.");
+        }
+      }
+
+      async function unsubscribe(checkbox) {
+        try {
+          const registration = await navigator.serviceWorker.getRegistration();
+          const subscription = await registration?.pushManager.getSubscription();
+          if (!subscription) return;
+          const endpoint = subscription.endpoint;
+          await subscription.unsubscribe();
+          await fetch('/api/push/unsubscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ endpoint }),
+          });
+        } catch {
+          checkbox.checked = true;
+          setStatus("Couldn't turn off notifications — please try again.");
+        }
+      }
+
+      document.addEventListener('change', (e) => {
+        const checkbox = e.target.closest?.('#push-subscribe-toggle');
+        if (!checkbox) return;
+        setStatus('');
+        if (checkbox.checked) subscribe(checkbox);
+        else unsubscribe(checkbox);
+      });
+
+      document.addEventListener('astro:page-load', syncCheckboxState);
+      if (document.readyState !== 'loading') syncCheckboxState();
+      else document.addEventListener('DOMContentLoaded', syncCheckboxState, { once: true });
+    })();
+  </script>
 </footer>
