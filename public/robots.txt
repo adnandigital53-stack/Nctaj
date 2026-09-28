@@ -1,6 +1,5 @@
 User-agent: *
 Allow: /
 Disallow: /admin
-Disallow: /uploads/
 
 Sitemap: https://nc-taj.adnandigital53.workers.dev/sitemap.xml

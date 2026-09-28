@@ -13,6 +13,7 @@
     "check:contrast": "node scripts/check-contrast.mjs",
     "check:behaviour": "node scripts/check-behaviour.mjs",
     "check:admin": "node scripts/check-admin.mjs",
+    "check:admin-a11y": "node scripts/check-admin-a11y.mjs",
     "deploy": "npm run build && wrangler deploy -c dist/server/wrangler.json",
     "cf:types": "wrangler types",
     "db:migrate:local": "wrangler d1 migrations apply nctaj-menu --local",

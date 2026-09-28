@@ -60,6 +60,20 @@ export async function getMenuStatus(db: D1): Promise<'placeholder' | 'live'> {
 }
 
 /**
+ * Real min/max of priced, available items — for the JSON-LD Restaurant's
+ * priceRange, so it tracks whatever's actually on the menu instead of
+ * drifting from a string someone typed in once. A single indexed aggregate,
+ * cheap enough for every page to call alongside getMenuStatus above.
+ */
+export async function getPriceRange(db: D1): Promise<{ min: number; max: number } | null> {
+  const row = await db
+    .prepare('SELECT MIN(price) as min, MAX(price) as max FROM items WHERE available = 1 AND price IS NOT NULL')
+    .first<{ min: number | null; max: number | null }>();
+  if (!row || row.min == null || row.max == null) return null;
+  return { min: row.min, max: row.max };
+}
+
+/**
  * Same as getMenu, but never throws — a transient D1 hiccup shouldn't crash
  * every page that shows the menu with a raw 500. Callers check `error` and
  * degrade appropriately (the homepage's dish ribbon just goes quiet with an

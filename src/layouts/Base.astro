@@ -6,17 +6,20 @@ import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import OrderBar from '../components/OrderBar.astro';
 import { ClientRouter } from 'astro:transitions';
-import { getMenuStatus } from '../lib/menu-db';
+import { getMenuStatus, getPriceRange } from '../lib/menu-db';
 
 // No `prerender` export here — that flag only does anything in a page file
 // under src/pages/, not a layout component. Every page stays dynamic (the
 // output:'server' default) precisely because this layout, used by all of
 // them, needs a live D1 read for the placeholder/live banner.
 
-const { title, description = site.description, path = '/' } = Astro.props;
+const { title, description = site.description, path = '/', noindex = false } = Astro.props;
 // Every page calls this, so a transient D1 hiccup shouldn't crash the whole
 // site over a banner — fail toward "live" (banner off) rather than raw 500.
 const isPreview = await getMenuStatus(env.DB).then((s) => s !== 'live').catch(() => false);
+// Same fail-safe shape: a hiccup here just falls back to the static guess
+// below rather than breaking the page over a JSON-LD field.
+const priceRange = await getPriceRange(env.DB).catch(() => null);
 const fullTitle = title ? `${title} — ${site.name}` : `${site.name} — ${site.tagline}`;
 const ga4 = site.analytics.ga4MeasurementId;
 
@@ -42,6 +45,7 @@ const structuredAddress = addressParts.length >= 2 && locality && postalCode
       addressCountry: 'IN',
     }
   : undefined;
+const sameAs = [site.social.instagram, site.social.facebook].filter(Boolean);
 const structuredData = base
   ? {
       '@context': 'https://schema.org',
@@ -53,7 +57,8 @@ const structuredData = base
       image: ogImage,
       telephone: site.contact.phone[0]?.dial,
       servesCuisine: ['Indian', 'North Indian', 'Biryani'],
-      priceRange: '₹29–₹499',
+      priceRange: priceRange ? `₹${priceRange.min}–₹${priceRange.max}` : '₹29–₹499',
+      sameAs: sameAs.length ? sameAs : undefined,
       address: structuredAddress,
       openingHoursSpecification: {
         '@type': 'OpeningHoursSpecification',
@@ -74,10 +79,22 @@ const structuredData = base
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
     <meta name="theme-color" content="#0E0E10" />
+    {/* Without this, iOS Safari auto-links any digit run that looks
+        phone-number-shaped — the established year, a postal code, the FSSAI
+        licence number — into a tap-to-call link nobody asked for. The real
+        phone numbers already have explicit tel: links, so this only turns
+        off the guessing. */}
+    <meta name="format-detection" content="telephone=no" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    {/* iOS ignores the manifest's display:standalone unless these are also
+        set directly — same "add to home screen" experience either way. */}
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content={site.name} />
 
     {/* Client-side navigation, so moving between pages cross-fades instead
         of flashing white. Scripts re-init on astro:page-load below. */}
@@ -110,10 +127,24 @@ const structuredData = base
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    {/* Loaded non-blocking: a synchronous <link rel="stylesheet"> here would
+        hold up first paint on a round-trip to Google Fonts. The
+        print-media/onload swap is the standard way to fetch a stylesheet
+        without letting it block rendering; noscript covers the no-JS case.
+        --header-h already re-measures once document.fonts.ready fires (see
+        the script below), so the later swap doesn't leave a stale offset. */}
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400;1,9..144,600&family=Inter:wght@400;500;600&display=swap"
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400;1,9..144,600&family=Inter:wght@400;500;600&display=swap"
+      />
+    </noscript>
 
     {ga4 && (
       <Fragment>
