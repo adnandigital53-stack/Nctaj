@@ -232,9 +232,11 @@ needs accounts only the site owner can create:
   effort than the Android path.
 
 Both require the account holder's own identity/payment details to create,
-so that first step has to happen outside this codebase. Once an account
-exists, ask and this can be picked back up — the packaging step itself is
-mechanical.
+so that first step has to happen outside this codebase. **This is parked,
+not scheduled** — nothing here happens until the owner explicitly asks for
+it (see the deferred list in `nc-taj-website-plan.md`, item 7, last in
+line). Once an account exists and the owner asks, the packaging step
+itself is mechanical.
 
 ## Security
 

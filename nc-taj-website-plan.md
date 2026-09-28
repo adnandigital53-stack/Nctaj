@@ -284,3 +284,9 @@ for 51 of 52 items (see the Photography section's 2026-09-24 note).
    (GST/PAN, business bank account) is genuinely not urgent — but business
    registration and FSSAI paperwork can take weeks, so start those early if this
    phase is wanted soon.
+7. **Package it as an app for Google Play / the Apple App Store.** Not
+   started, and not to be started proactively — do this only when the owner
+   explicitly asks. It needs the owner's own developer accounts (Google
+   Play: one-time $25; Apple: $99/year) created outside this codebase first;
+   see the README's "Turning this into an 'app'" section for the mechanics
+   once that's ready.
