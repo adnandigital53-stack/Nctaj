@@ -202,14 +202,18 @@ account depends on this working.
   device:
 
   ```bash
-  npx wrangler secret put VAPID_PRIVATE_KEY_JWK
+  node scripts/generate-vapid.mjs                 # prints a fresh keypair
+  npx wrangler secret put VAPID_PRIVATE_KEY_JWK   # paste the "private jwk" line
   ```
 
-  (paste the JWK value from your local `.dev.vars` — the matching public
-  key is already committed in `wrangler.jsonc`, so don't regenerate the
-  pair, just carry the existing private key into production). Then open the
-  live site on a phone, tick the checkbox, and send a test notification from
-  `/admin/notifications`.
+  Put the printed `public` value in `wrangler.jsonc` (`vars.VAPID_PUBLIC_KEY`)
+  and the private JWK in your local `.dev.vars`. The public key committed in
+  this repo was generated in a throwaway sandbox whose private half no longer
+  exists, so **generate your own pair before launch** — the two must match, and
+  changing the pair later invalidates existing subscribers. Then open the live
+  site on a phone, tick the checkbox, and send a test from
+  `/admin/notifications` (which asks for confirmation before sending and
+  keeps a history of past sends).
 
 ### Turning this into an "app"
 

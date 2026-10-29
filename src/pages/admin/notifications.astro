@@ -49,6 +49,13 @@ if (Astro.request.method === 'POST') {
         await db.batch(expired.map((endpoint) => db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').bind(endpoint)));
       }
 
+      if (subs.length) {
+        await db
+          .prepare('INSERT INTO sent_notifications (title, body, url, sent, total) VALUES (?, ?, ?, ?, ?)')
+          .bind(title, body, url, sent, subs.length)
+          .run();
+      }
+
       flash = subs.length
         ? {
             kind: 'ok',
@@ -65,6 +72,10 @@ if (Astro.request.method === 'POST') {
 
 const { results: countRows } = await db.prepare('SELECT COUNT(*) as n FROM push_subscriptions').all<{ n: number }>();
 const subscriberCount = countRows[0]?.n ?? 0;
+
+const { results: history } = await db
+  .prepare('SELECT title, body, sent, total, created_at FROM sent_notifications ORDER BY id DESC LIMIT 20')
+  .all<{ title: string; body: string; sent: number; total: number; created_at: string }>();
 ---
 <AdminLayout title="Notifications">
   <h1>Send a notification</h1>
@@ -75,7 +86,7 @@ const subscriberCount = countRows[0]?.n ?? 0;
 
   {flash && <div class={`flash flash--${flash.kind}`}>{flash.text}</div>}
 
-  <form method="POST" class="card">
+  <form method="POST" class="card" id="send-form" data-count={subscriberCount}>
     <div class="field">
       <label for="title">Title</label>
       <input type="text" id="title" name="title" required maxlength="60" placeholder="New at NC Taj" />
@@ -92,4 +103,30 @@ const subscriberCount = countRows[0]?.n ?? 0;
       {subscriberCount === 0 ? 'No subscribers yet' : `Send to ${subscriberCount} subscriber${subscriberCount === 1 ? '' : 's'}`}
     </button>
   </form>
+
+  <h2 style="font-size:1.1rem;margin:2rem 0 .75rem;">Sent so far</h2>
+  {history.length === 0
+    ? <p class="sub">Nothing sent yet.</p>
+    : (
+      <div class="card">
+        {history.map((h) => (
+          <div style="padding:.6rem 0;border-bottom:1px solid var(--hairline);">
+            <strong>{h.title}</strong> — {h.body}
+            <div class="sub" style="margin:.2rem 0 0;">
+              {h.created_at} UTC · delivered to {h.sent} of {h.total}
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+
+  <script is:inline>
+    // A send can't be undone and goes to everyone — make it a deliberate act.
+    document.getElementById('send-form')?.addEventListener('submit', (e) => {
+      const n = e.currentTarget.dataset.count;
+      const title = document.getElementById('title').value;
+      const body = document.getElementById('body').value;
+      if (!confirm(`Send to ${n} subscriber${n === '1' ? '' : 's'}?\n\n${title}\n${body}\n\nThis can't be undone.`)) e.preventDefault();
+    });
+  </script>
 </AdminLayout>
