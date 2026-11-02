@@ -32,10 +32,10 @@
   ],
 
   // --- R2: admin-uploaded and seed menu photos ----------------------------
-  // Bucket not created yet — R2 isn't enabled on the Cloudflare account.
-  // Once it is, re-run .github/workflows/provision-cloudflare.yml: it
-  // creates this bucket and re-seeds the photos it skipped, no other
-  // changes needed here since bucket_name (not an id) is already correct.
+  // Real bucket — created and filled with the starter photos (menu/<name>.jpg)
+  // by .github/workflows/setup-r2.yml, which only links photos to items that
+  // have none, so /admin edits survive. Don't re-run provision-cloudflare.yml
+  // for photos: its seed step wipes and reloads every menu item and category.
   "r2_buckets": [
     { "binding": "MENU_IMAGES", "bucket_name": "nctaj-menu-images" }
   ],
