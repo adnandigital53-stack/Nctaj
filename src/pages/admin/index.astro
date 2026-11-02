@@ -1,0 +1,193 @@
+---
+export const prerender = false;
+import { env } from 'cloudflare:workers';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getAllItemsForAdmin, deleteItem, setMenuStatus, getMenuStatus, moveItem } from '../../lib/menu-db';
+
+const db = env.DB;
+let flash: { kind: 'ok' | 'error'; text: string } | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = String(form.get('_action') ?? '');
+
+  // A transient D1 hiccup on a write shouldn't hand the admin Astro's
+  // generic 500 page — this way they land back on the dashboard, told to
+  // retry, rather than losing their place over something that isn't their
+  // fault and often isn't permanent.
+  try {
+    if (action === 'delete') {
+      const id = String(form.get('id') ?? '');
+      await deleteItem(db, id);
+      flash = { kind: 'ok', text: `Deleted "${id}".` };
+    } else if (action === 'toggle-available') {
+      const id = String(form.get('id') ?? '');
+      const makeAvailable = form.get('available') === '1';
+      // updated_at too, same as a full edit via updateItem() — otherwise
+      // the "last edited" column below would silently ignore visibility
+      // toggles, which are a real change to what the item does on the site.
+      await db.prepare("UPDATE items SET available = ?, updated_at = datetime('now') WHERE id = ?").bind(makeAvailable ? 1 : 0, id).run();
+      flash = { kind: 'ok', text: makeAvailable ? `"${id}" is visible again.` : `"${id}" hidden from the site.` };
+    } else if (action === 'set-status') {
+      const status = form.get('status') === 'live' ? 'live' : 'placeholder';
+      await setMenuStatus(db, status);
+      flash = {
+        kind: 'ok',
+        text: status === 'live' ? 'Site is live — the preview banner is off.' : 'Back to placeholder — the preview banner is on.',
+      };
+    } else if (action === 'move-up' || action === 'move-down') {
+      const id = String(form.get('id') ?? '');
+      await moveItem(db, id, action === 'move-up' ? 'up' : 'down');
+    }
+  } catch (e) {
+    // Logged, not just swallowed — otherwise a real failure here is
+    // invisible to everyone except the admin staring at the generic
+    // message, with nothing to go on in Cloudflare's own Worker logs.
+    console.error('dashboard POST failed:', e);
+    flash = { kind: 'error', text: 'Something went wrong saving that — please try again.' };
+  }
+}
+
+const [items, menuStatus] = await Promise.all([getAllItemsForAdmin(db), getMenuStatus(db)]);
+
+const byCategory = new Map<string, typeof items>();
+for (const item of items) {
+  const list = byCategory.get(item.category_name) ?? [];
+  list.push(item);
+  byCategory.set(item.category_name, list);
+}
+
+const inr = (n: number | null) => (n == null ? 'TBC' : `₹${n}`);
+
+// items.updated_at is a SQLite datetime('now') string ("YYYY-MM-DD
+// HH:MM:SS", UTC, no offset) — new Date() on that exact shape is parsed as
+// local time in some engines, not UTC, so the space->T + trailing Z is
+// there to force correct UTC parsing rather than trust the ambiguous form.
+const relativeTime = (sqliteUtc: string): string => {
+  const ms = Date.now() - new Date(sqliteUtc.replace(' ', 'T') + 'Z').getTime();
+  const mins = Math.floor(ms / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return `${Math.floor(months / 12)}y ago`;
+};
+---
+<AdminLayout title="Dashboard">
+  <h1>Menu</h1>
+  <p class="sub">{items.length} items. Changes here show up on the live site immediately — no rebuild.</p>
+
+  {flash && <div class={`flash flash--${flash.kind}`}>{flash.text}</div>}
+
+  <div class="card" style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+    <div class="status-toggle">
+      <span class={`pill ${menuStatus === 'live' ? 'pill--veg' : 'pill--off'}`}>{menuStatus === 'live' ? 'LIVE' : 'PLACEHOLDER'}</span>
+      <span style="color: var(--cream-muted);">
+        {menuStatus === 'live'
+          ? 'The site shows real prices and no banner.'
+          : 'The site shows "Price TBC" style placeholders where the price is null, and an orange preview banner on every page.'}
+      </span>
+    </div>
+    <form method="POST">
+      <input type="hidden" name="_action" value="set-status" />
+      <input type="hidden" name="status" value={menuStatus === 'live' ? 'placeholder' : 'live'} />
+      <button type="submit" class={menuStatus === 'live' ? 'btn' : 'btn btn--primary'}>
+        {menuStatus === 'live' ? 'Revert to placeholder' : 'Go live'}
+      </button>
+    </form>
+  </div>
+
+  <div class="field" style="max-width: 360px; margin-bottom: 1.5rem;">
+    <input type="search" id="admin-search" placeholder="Filter by name…" aria-label="Filter items by name" autocomplete="off" />
+  </div>
+
+  {[...byCategory.entries()].map(([catName, catItems]) => (
+    <Fragment>
+      <div data-admin-cat-block>
+        <h2 class="cat-heading">{catName}</h2>
+        <div class="card" style="padding: 0; overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th></th>
+              <th>Name</th>
+              <th>Price</th>
+              <th>Veg</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {catItems.map((item, i) => (
+              <tr data-admin-row data-row-name={item.name.toLowerCase()}>
+                <td style="white-space:nowrap;">
+                  <form method="POST" style="display:inline;">
+                    <input type="hidden" name="_action" value="move-up" />
+                    <input type="hidden" name="id" value={item.id} />
+                    <button type="submit" class="btn" style="min-height:28px; min-width:28px; padding:0; font-size:.75rem;" disabled={i === 0} aria-label={`Move ${item.name} up`}>↑</button>
+                  </form>
+                  <form method="POST" style="display:inline;">
+                    <input type="hidden" name="_action" value="move-down" />
+                    <input type="hidden" name="id" value={item.id} />
+                    <button type="submit" class="btn" style="min-height:28px; min-width:28px; padding:0; font-size:.75rem;" disabled={i === catItems.length - 1} aria-label={`Move ${item.name} down`}>↓</button>
+                  </form>
+                </td>
+                <td>
+                  {item.photo_key ? (
+                    <img class="thumb" src={`/uploads/${item.photo_key}`} alt="" />
+                  ) : (
+                    <span class="thumb"></span>
+                  )}
+                </td>
+                <td>
+                  {item.name}
+                  {!!item.bestseller && <span class="pill" style="background: rgba(232,163,61,.15); color: var(--saffron); margin-left: .4rem;">★</span>}
+                  <br />
+                  <span style="font-size:.75rem; color:var(--cream-muted);">edited {relativeTime(item.updated_at)}</span>
+                </td>
+                <td>{inr(item.price)}</td>
+                <td><span class={`pill ${item.veg ? 'pill--veg' : 'pill--nonveg'}`}>{item.veg ? 'Veg' : 'Non-veg'}</span></td>
+                <td>
+                  <span class={`pill ${item.available ? 'pill--veg' : 'pill--off'}`}>{item.available ? 'Visible' : 'Hidden'}</span>
+                </td>
+                <td style="white-space: nowrap; display: flex; gap: .4rem;">
+                  <a class="btn" style="min-height:32px; padding:0 .7rem; font-size:.8rem;" href={`/admin/items/${item.id}`}>Edit</a>
+                  <form method="POST" style="display:inline;">
+                    <input type="hidden" name="_action" value="toggle-available" />
+                    <input type="hidden" name="id" value={item.id} />
+                    <input type="hidden" name="available" value={item.available ? '0' : '1'} />
+                    <button type="submit" class="btn" style="min-height:32px; padding:0 .7rem; font-size:.8rem;">
+                      {item.available ? 'Hide' : 'Show'}
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        </div>
+      </div>
+    </Fragment>
+  ))}
+
+  <script is:inline>
+    const search = document.getElementById('admin-search');
+    search?.addEventListener('input', () => {
+      const term = search.value.trim().toLowerCase();
+      document.querySelectorAll('[data-admin-cat-block]').forEach((block) => {
+        let visible = 0;
+        block.querySelectorAll('[data-admin-row]').forEach((row) => {
+          const show = !term || row.dataset.rowName.includes(term);
+          row.hidden = !show;
+          if (show) visible++;
+        });
+        block.hidden = visible === 0;
+      });
+    });
+  </script>
+</AdminLayout>

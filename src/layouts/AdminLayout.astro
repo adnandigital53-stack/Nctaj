@@ -1,0 +1,247 @@
+---
+// Deliberately not Base.astro: the admin has no reason to ship the marketing
+// site's embers/motion/analytics — just the palette, for a consistent feel.
+const { title = 'Admin' } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{title} — NC Taj Admin</title>
+    <!--
+      is:global, not scoped — every admin page (categories, items, the
+      dashboard) renders its markup in its OWN template and reaches this
+      layout only through <slot />. Astro's scoping only tags elements a
+      component renders directly; slotted content never gets the parent
+      layout's data-astro-cid attribute, so a scoped style block here would
+      never match a single element any page actually renders. Safe globally:
+      this is a standalone document (own <html>/<head>/<body>, never Base.astro),
+      so nothing from the public site's stylesheet ever shares a page with it.
+    -->
+    <style is:global>
+      :root {
+        --bg: #0e0e10; --surface: #17171a; --surface-2: #1f1f24;
+        --cream: #f5efe6; --cream-muted: #b5ada1;
+        --saffron: #e8a33d; --veg: #4caf50; --nonveg: #c0392b;
+        --hairline: rgba(245,239,230,.12);
+        --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; background: var(--bg); color: var(--cream);
+        font-family: var(--font); font-size: 15px; line-height: 1.5;
+      }
+      a { color: var(--saffron); }
+      .bar {
+        position: sticky; top: 0; z-index: 10;
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 1rem; padding: .85rem 1.25rem; background: rgba(14,14,16,.95);
+        backdrop-filter: blur(10px); border-bottom: 1px solid var(--hairline);
+        flex-wrap: wrap;
+      }
+      .bar__brand { font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+      .bar__nav { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+      /* The main nav links, tapped constantly — a 44px hit box (WCAG 2.5.8),
+         not just the text's own line-height (was ~22px tall). */
+      .bar__nav a { display: inline-flex; align-items: center; min-height: 44px; text-decoration: none; color: var(--cream-muted); font-size: .9rem; }
+      .bar__nav a:hover, .bar__nav a.active { color: var(--saffron); }
+      main { padding: 1.5rem 1.25rem 4rem; max-width: 980px; margin-inline: auto; }
+      h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
+      .sub { color: var(--cream-muted); font-size: .875rem; margin: 0 0 1.5rem; }
+      .card {
+        background: var(--surface); border: 1px solid var(--hairline);
+        border-radius: 10px; padding: 1.25rem;
+      }
+      .btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        min-height: 44px; padding: 0 1.1rem; border-radius: 6px; border: 1px solid var(--hairline);
+        background: var(--surface-2); color: var(--cream); font-size: .875rem; font-weight: 600;
+        text-decoration: none; cursor: pointer;
+      }
+      .btn--primary { background: var(--saffron); color: #0e0e10; border-color: var(--saffron); }
+      /* var(--nonveg) itself (#c0392b) is a border/accent color, not a text
+         color — measured at 2.95–3.55:1 against these dark backgrounds,
+         below the 4.5:1 WCAG AA floor for normal text (caught by
+         check-admin-a11y.mjs). #f3b9b0 is the same red already proven
+         accessible here as .flash--error's text color (9.4–11.4:1). */
+      .btn--danger { background: transparent; color: #f3b9b0; border-color: var(--nonveg); }
+      .btn:disabled { opacity: .5; cursor: not-allowed; }
+      label { display: block; font-size: .8rem; color: var(--cream-muted); margin-bottom: .3rem; letter-spacing: .02em; }
+      input[type="text"], input[type="number"], input[type="password"], textarea, select {
+        width: 100%; background: var(--surface-2); border: 1px solid var(--hairline);
+        color: var(--cream); border-radius: 6px; padding: .6rem .7rem; font-size: .95rem;
+        font-family: inherit;
+      }
+      input:focus, textarea:focus, select:focus { outline: 2px solid var(--saffron); outline-offset: 1px; }
+      /* Buttons and links had no focus style of their own here, so a
+         keyboard user tabbing through fell back to the browser's default
+         ring — mismatched against this palette, and inconsistent with the
+         public site's own branded :focus-visible (src/styles/global.css). */
+      :focus-visible { outline: 2px solid var(--saffron); outline-offset: 2px; border-radius: 2px; }
+      .field { margin-bottom: 1.1rem; }
+      .char-counter { display: block; font-size: .75rem; color: var(--cream-muted); margin-top: .3rem; text-align: right; }
+      /* Same accessible red as .btn--danger/.pill--nonveg above — not
+         var(--nonveg) itself, which fails AA as a text color here. */
+      .char-counter.is-low { color: #f3b9b0; }
+      .row { display: flex; gap: 1rem; flex-wrap: wrap; }
+      .row > .field { flex: 1 1 200px; }
+      .check { display: flex; align-items: center; gap: .5rem; font-size: .9rem; color: var(--cream); }
+      .check input { width: auto; }
+      .flash {
+        position: fixed; top: 1rem; left: 50%; transform: translate(-50%, 0);
+        display: flex; align-items: center; gap: .6rem;
+        max-width: min(460px, calc(100vw - 2rem));
+        padding: .75rem 1rem; border-radius: 6px; font-size: .9rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,.4); z-index: 100;
+        animation: flash-in .25s ease-out;
+      }
+      .flash.is-leaving { animation: flash-out .2s ease-in forwards; }
+      @keyframes flash-in {
+        from { opacity: 0; transform: translate(-50%, -10px); }
+        to { opacity: 1; transform: translate(-50%, 0); }
+      }
+      @keyframes flash-out {
+        from { opacity: 1; transform: translate(-50%, 0); }
+        to { opacity: 0; transform: translate(-50%, -10px); }
+      }
+      .flash--error { background: #201517; border: 1px solid var(--nonveg); color: #f3b9b0; }
+      .flash--ok { background: #15201a; border: 1px solid var(--veg); color: #bfe6c1; }
+      .flash__close {
+        margin-left: auto; background: none; border: 0; color: inherit; cursor: pointer;
+        font-size: 1.15rem; line-height: 1; padding: 0 .15rem; opacity: .7; flex-shrink: 0;
+      }
+      .flash__close:hover { opacity: 1; }
+      table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+      th, td { text-align: left; padding: .65rem .6rem; border-bottom: 1px solid var(--hairline); vertical-align: middle; }
+      th { color: var(--cream-muted); font-weight: 600; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; }
+      tr:last-child td { border-bottom: 0; }
+      .thumb { width: 46px; height: 34px; border-radius: 4px; object-fit: cover; background: var(--surface-2); display: block; }
+      /* Was wrapping onto two lines ("Non-\nveg") the moment its table
+         column got narrow — a pill is a label, never a paragraph. */
+      .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .7rem; font-weight: 600; letter-spacing: .04em; white-space: nowrap; }
+      .pill--veg { background: rgba(76,175,80,.15); color: var(--veg); }
+      /* Same accessible red as .btn--danger above — var(--nonveg) as pill
+         text measured 2.95:1 on this tinted background, below AA. */
+      .pill--nonveg { background: rgba(192,57,43,.15); color: #f3b9b0; }
+      .pill--off { background: var(--surface-2); color: var(--cream-muted); }
+      .cat-heading { margin: 2rem 0 .5rem; font-size: .95rem; color: var(--saffron); font-weight: 700; }
+      .cat-heading:first-of-type { margin-top: 0; }
+      .status-toggle { display: flex; align-items: center; gap: .6rem; font-size: .85rem; }
+      /* The item table is dense by design (up to 16 rows, 7 columns) — on a
+         phone-width screen the thumbnail is the one column that's purely
+         decorative, not information, so it's what gives way first. Table
+         auto-layout reclaims that width for the name/price/status columns
+         that actually need it, rather than every column shrinking evenly. */
+      @media (max-width: 600px) {
+        .thumb { display: none; }
+      }
+      /* Near-instant, not animation:none — the dismiss script waits on this
+         animation's `animationend` event to remove the element (see the
+         script below), which never fires without an animation running at
+         all. Same convention as the public site's own reduced-motion rule. */
+      @media (prefers-reduced-motion: reduce) {
+        .flash, .flash.is-leaving { animation-duration: 0.01ms; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bar">
+      <span class="bar__brand">NC TAJ <span style="color:var(--saffron);">Admin</span></span>
+      <nav class="bar__nav">
+        <a href="/admin">Dashboard</a>
+        <a href="/admin/items/new">Add item</a>
+        <a href="/admin/categories">Categories</a>
+        <a href="/admin/notifications">Notifications</a>
+        <a href="/">View site ↗</a>
+        <form method="POST" action="/admin/logout" style="display:inline;">
+          <button type="submit" class="btn" style="padding:0 .8rem; font-size:.8rem;">Log out</button>
+        </form>
+      </nav>
+    </div>
+    <main>
+      <slot />
+    </main>
+    <script>
+      // Disables a form's submit button the instant it's clicked, so an
+      // impatient second click (or a slow photo upload) can't fire a
+      // duplicate POST before the page navigates away. Runs after any
+      // page-specific confirm() listeners (this script is last in document
+      // order), so it backs off via e.defaultPrevented when one of those
+      // cancels the submit.
+      document.querySelectorAll('main form').forEach((form) => {
+        form.addEventListener('submit', (e) => {
+          if (e.defaultPrevented) return;
+          const btn = form.querySelector('button[type="submit"]');
+          if (!btn || btn.disabled) return;
+          btn.disabled = true;
+          btn.dataset.dsDisabled = '1';
+          if (btn.classList.contains('btn--primary') || btn.classList.contains('btn--danger')) {
+            btn.dataset.dsOriginalText = btn.textContent ?? '';
+            btn.textContent = 'Please wait…';
+          }
+        });
+      });
+
+      // A page restored from the back-forward cache after a submit would
+      // otherwise show a permanently disabled, stuck-on-"Please wait" button.
+      window.addEventListener('pageshow', (e) => {
+        if (!e.persisted) return;
+        document.querySelectorAll('button[data-ds-disabled]').forEach((btn) => {
+          btn.disabled = false;
+          if (btn.dataset.dsOriginalText) btn.textContent = btn.dataset.dsOriginalText;
+        });
+      });
+
+      // Flash messages become auto-dismissing toasts here, once, rather than
+      // in every page that renders the shared `.flash` div.
+      const bar = document.querySelector('.bar');
+      // The bar is sticky at top:0, so its rendered height (not its scroll
+      // position) is what the toast needs to clear — read fresh per toast
+      // since it doesn't change after load.
+      const toastTop = (bar?.getBoundingClientRect().height ?? 0) + 16;
+      document.querySelectorAll('.flash').forEach((el) => {
+        el.style.top = `${toastTop}px`;
+        el.setAttribute('role', 'status');
+        el.setAttribute('aria-live', 'polite');
+
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'flash__close';
+        closeBtn.setAttribute('aria-label', 'Dismiss');
+        closeBtn.textContent = '×';
+        el.appendChild(closeBtn);
+
+        let timer;
+        const dismiss = () => {
+          el.classList.add('is-leaving');
+          el.addEventListener('animationend', () => el.remove(), { once: true });
+        };
+        const schedule = () => { timer = setTimeout(dismiss, 5000); };
+        closeBtn.addEventListener('click', () => { clearTimeout(timer); dismiss(); });
+        el.addEventListener('mouseenter', () => clearTimeout(timer));
+        el.addEventListener('mouseleave', schedule);
+        schedule();
+      });
+
+      // Live character counter for every maxlength field, admin-wide — one
+      // generic pass here instead of per-field markup on every page, so a
+      // new maxlength field anywhere just gets one for free.
+      document.querySelectorAll('input[maxlength], textarea[maxlength]').forEach((el) => {
+        const max = Number(el.getAttribute('maxlength'));
+        if (!max) return;
+        const counter = document.createElement('span');
+        counter.className = 'char-counter';
+        el.insertAdjacentElement('afterend', counter);
+        const update = () => {
+          const remaining = max - el.value.length;
+          counter.textContent = `${el.value.length}/${max}`;
+          counter.classList.toggle('is-low', remaining <= 10);
+        };
+        el.addEventListener('input', update);
+        update();
+      });
+    </script>
+  </body>
+</html>

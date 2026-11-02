@@ -1,12 +1,25 @@
 ---
+import { env } from 'cloudflare:workers';
 import '../styles/global.css';
 import site from '../data/site.json';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import OrderBar from '../components/OrderBar.astro';
 import { ClientRouter } from 'astro:transitions';
+import { getMenuStatus, getPriceRange } from '../lib/menu-db';
 
-const { title, description = site.description, path = '/' } = Astro.props;
+// No `prerender` export here — that flag only does anything in a page file
+// under src/pages/, not a layout component. Every page stays dynamic (the
+// output:'server' default) precisely because this layout, used by all of
+// them, needs a live D1 read for the placeholder/live banner.
+
+const { title, description = site.description, path = '/', noindex = false } = Astro.props;
+// Every page calls this, so a transient D1 hiccup shouldn't crash the whole
+// site over a banner — fail toward "live" (banner off) rather than raw 500.
+const isPreview = await getMenuStatus(env.DB).then((s) => s !== 'live').catch(() => false);
+// Same fail-safe shape: a hiccup here just falls back to the static guess
+// below rather than breaking the page over a JSON-LD field.
+const priceRange = await getPriceRange(env.DB).catch(() => null);
 const fullTitle = title ? `${title} — ${site.name}` : `${site.name} — ${site.tagline}`;
 const ga4 = site.analytics.ga4MeasurementId;
 
@@ -14,6 +27,49 @@ const ga4 = site.analytics.ga4MeasurementId;
 const base = site.siteUrl?.replace(/\/$/, '') ?? null;
 const canonical = base ? new URL(path, `${base}/`).href : null;
 const ogImage = base ? `${base}/og.jpg` : null;
+
+// schema.org Restaurant markup for rich results (Google/Bing local search,
+// map cards). Same absolute-URL gating as the OG tags above. Every field
+// here traces back to a real value already in site.json — no invented
+// ratings, reviews, or cuisine tags not already stated in site.description.
+// "NC Taj, L-1 Irwin Road, Lashkar Mohalla, Mysore – 570001" ->
+// streetAddress "L-1 Irwin Road, Lashkar Mohalla", locality "Mysore", postal "570001".
+const [, ...addressParts] = site.contact.address.split(',').map((s) => s.trim());
+const [locality, postalCode] = (addressParts.at(-1) ?? '').split('–').map((s) => s.trim());
+const structuredAddress = addressParts.length >= 2 && locality && postalCode
+  ? {
+      '@type': 'PostalAddress',
+      streetAddress: addressParts.slice(0, -1).join(', '),
+      addressLocality: locality,
+      postalCode,
+      addressCountry: 'IN',
+    }
+  : undefined;
+const sameAs = [site.social.instagram, site.social.facebook].filter(Boolean);
+const structuredData = base
+  ? {
+      '@context': 'https://schema.org',
+      '@type': 'Restaurant',
+      name: site.name,
+      alternateName: site.fullName,
+      description: site.description,
+      url: `${base}/`,
+      image: ogImage,
+      telephone: site.contact.phone[0]?.dial,
+      servesCuisine: ['Indian', 'North Indian', 'Biryani'],
+      priceRange: priceRange ? `₹${priceRange.min}–₹${priceRange.max}` : '₹29–₹499',
+      sameAs: sameAs.length ? sameAs : undefined,
+      address: structuredAddress,
+      openingHoursSpecification: {
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+        opens: site.contact.hours.opens,
+        closes: site.contact.hours.closes,
+      },
+      hasMenu: `${base}/menu`,
+      acceptsReservations: 'False',
+    }
+  : null;
 ---
 
 <!doctype html>
@@ -23,8 +79,22 @@ const ogImage = base ? `${base}/og.jpg` : null;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
     <meta name="theme-color" content="#0E0E10" />
+    {/* Without this, iOS Safari auto-links any digit run that looks
+        phone-number-shaped — the established year, a postal code, the FSSAI
+        licence number — into a tap-to-call link nobody asked for. The real
+        phone numbers already have explicit tel: links, so this only turns
+        off the guessing. */}
+    <meta name="format-detection" content="telephone=no" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    {/* iOS ignores the manifest's display:standalone unless these are also
+        set directly — same "add to home screen" experience either way. */}
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content={site.name} />
 
     {/* Client-side navigation, so moving between pages cross-fades instead
         of flashing white. Scripts re-init on astro:page-load below. */}
@@ -53,12 +123,28 @@ const ogImage = base ? `${base}/og.jpg` : null;
       </Fragment>
     )}
 
+    {structuredData && <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />}
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    {/* Loaded non-blocking: a synchronous <link rel="stylesheet"> here would
+        hold up first paint on a round-trip to Google Fonts. The
+        print-media/onload swap is the standard way to fetch a stylesheet
+        without letting it block rendering; noscript covers the no-JS case.
+        --header-h already re-measures once document.fonts.ready fires (see
+        the script below), so the later swap doesn't leave a stale offset. */}
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400;1,9..144,600&family=Inter:wght@400;500;600&display=swap"
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400;1,9..144,600&family=Inter:wght@400;500;600&display=swap"
+      />
+    </noscript>
 
     {ga4 && (
       <Fragment>
@@ -75,10 +161,11 @@ const ogImage = base ? `${base}/og.jpg` : null;
   </head>
 
   <body>
+    <a href="#main" class="skip-link">Skip to content</a>
     <div class="progress" transition:persist></div>
-    <Header path={path} transition:persist />
+    <Header path={path} isPreview={isPreview} transition:persist />
 
-    <main id="main">
+    <main id="main" tabindex="-1">
       <slot />
     </main>
 
@@ -90,6 +177,28 @@ const ogImage = base ? `${base}/og.jpg` : null;
         // --- bound once for the life of the document ------------------
         if (!window.__nctaj) {
           window.__nctaj = { io: null };
+
+          // Registered once here rather than per-navigation like the burger's
+          // own click handler below — `.burger`/`.mobile-nav` are looked up
+          // fresh on every fire instead of closed over, since (like the cart
+          // header) a soft navigation replaces these elements even though
+          // Header carries `transition:persist`.
+          const closeMobileNav = () => {
+            document.querySelector('.burger')?.setAttribute('aria-expanded', 'false');
+            document.querySelector('.mobile-nav')?.setAttribute('data-open', 'false');
+          };
+          document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            if (document.querySelector('.burger')?.getAttribute('aria-expanded') !== 'true') return;
+            closeMobileNav();
+            document.querySelector('.burger')?.focus();
+          });
+          document.addEventListener('click', (e) => {
+            const burger = document.querySelector('.burger');
+            if (burger?.getAttribute('aria-expanded') !== 'true') return;
+            if (e.target.closest('.mobile-nav') || e.target.closest('.burger')) return;
+            closeMobileNav();
+          });
 
           // Outbound click tracking. Fires with or without GA4 configured.
           document.addEventListener('click', (e) => {
@@ -410,6 +519,30 @@ const ogImage = base ? `${base}/og.jpg` : null;
         if (document.readyState !== 'loading') init();
         else document.addEventListener('DOMContentLoaded', init, { once: true });
       })();
+    </script>
+
+    {/* Dev-only skip: astro dev's own asset paths and rebuild cycle aren't
+        what public/sw.js's caching rules are written for (they assume the
+        built, content-hashed /_astro/* output), and a service worker
+        persists in the browser well past the tab that registered it — not
+        something to leave behind as a side effect of local development. */}
+    <script is:inline define:vars={{ isProd: import.meta.env.PROD }}>
+      if (isProd && 'serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          // A controller already present means this tab was already being
+          // served by an earlier deploy's service worker — the new one
+          // taking over (sw.js's skipWaiting + clients.claim) is a real
+          // update, worth a one-time reload so an open tab doesn't sit on
+          // stale JS/CSS until the visitor happens to navigate again. On a
+          // first-ever visit there's no prior controller, so this is
+          // skipped — nothing to refresh away from.
+          const hadController = !!navigator.serviceWorker.controller;
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+          if (hadController) {
+            navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), { once: true });
+          }
+        });
+      }
     </script>
   </body>
 </html>

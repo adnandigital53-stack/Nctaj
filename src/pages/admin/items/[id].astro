@@ -1,0 +1,179 @@
+---
+export const prerender = false;
+import { env } from 'cloudflare:workers';
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { getCategories, getItem, updateItem, deleteItem, createItem, slugifyUnique } from '../../../lib/menu-db';
+import { sniffImageType } from '../../../lib/image-sniff';
+
+const db = env.DB;
+const { id } = Astro.params;
+let error: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = String(form.get('_action') ?? 'save');
+
+  // A transient D1/R2 hiccup here shouldn't hand the admin Astro's generic
+  // 500 page — this way they land back on the same filled-in form, told to
+  // retry, rather than losing their place over something that isn't their
+  // fault and often isn't permanent.
+  try {
+    if (action === 'delete') {
+      await deleteItem(db, id!);
+      return Astro.redirect('/admin?deleted=' + encodeURIComponent(id!));
+    }
+
+    if (action === 'duplicate') {
+      const original = await getItem(db, id!);
+      if (original) {
+        const name = `${original.name} (Copy)`;
+        const newId = await slugifyUnique(db, name);
+        // Starts hidden (available: false) and without the bestseller badge
+        // — a copy is a starting point to edit, not something that should
+        // go live next to the original with the same name until it's been
+        // told apart. Sharing photo_key is safe: deleteItem never touches
+        // R2 either, so nothing here is more or less orphan-prone than an
+        // item that was never duplicated.
+        await createItem(
+          db,
+          {
+            id: newId,
+            categoryId: original.category_id,
+            name,
+            description: original.description,
+            price: original.price,
+            veg: !!original.veg,
+            bestseller: false,
+            available: false,
+          },
+          original.photo_key,
+        );
+        return Astro.redirect('/admin/items/' + encodeURIComponent(newId));
+      }
+    }
+
+    const name = String(form.get('name') ?? '').trim();
+    const categoryId = String(form.get('categoryId') ?? '');
+    const priceRaw = String(form.get('price') ?? '').trim();
+    const price = priceRaw === '' ? null : Number(priceRaw);
+    const description = String(form.get('description') ?? '').trim();
+    const veg = form.get('veg') === '1';
+    const bestseller = form.get('bestseller') === '1';
+    const available = form.get('available') === '1';
+    const photo = form.get('photo') as File | null;
+
+    if (!name) {
+      error = 'Name is required.';
+    } else if (!categoryId) {
+      error = 'Pick a category.';
+    } else if (priceRaw !== '' && (!Number.isFinite(price) || price! < 0)) {
+      error = 'Price has to be a positive number, or left blank for "Price TBC".';
+    } else {
+      let photoKey: string | null | undefined = undefined; // undefined = leave photo unchanged
+      if (photo && photo.size > 0) {
+        if (photo.size > 8 * 1024 * 1024) {
+          error = 'That photo is over 8MB even after compression — try a different one.';
+        } else {
+          const buffer = await photo.arrayBuffer();
+          const sniffed = sniffImageType(new Uint8Array(buffer.slice(0, 12)));
+          if (!sniffed) {
+            error = "That file doesn't look like a real photo (JPEG/PNG/WebP) — try a different one.";
+          } else {
+            photoKey = `menu/${id}-${Date.now()}.jpg`;
+            await env.MENU_IMAGES.put(photoKey, buffer, { httpMetadata: { contentType: sniffed } });
+          }
+        }
+      }
+      if (!error) {
+        await updateItem(db, id!, { id: id!, categoryId, name, description, price, veg, bestseller, available }, photoKey);
+        return Astro.redirect('/admin?saved=' + encodeURIComponent(id!));
+      }
+    }
+  } catch (e) {
+    // Logged, not just swallowed — otherwise a real failure here is
+    // invisible to everyone except the admin staring at the generic
+    // message, with nothing to go on in Cloudflare's own Worker logs.
+    console.error('item update/delete/duplicate failed:', e);
+    error = 'Something went wrong saving that — please try again.';
+  }
+}
+
+const [item, categories] = await Promise.all([getItem(db, id!), getCategories(db)]);
+if (!item) return Astro.redirect('/admin?missing=' + encodeURIComponent(id!));
+---
+<AdminLayout title={`Edit ${item.name}`}>
+  <h1>{item.name}</h1>
+  <p class="sub">id: <code>{item.id}</code> — saving shows up on the site immediately.</p>
+
+  {error && <div class="flash flash--error">{error}</div>}
+
+  {item.photo_key && (
+    <div class="card" style="margin-bottom:1.25rem; display:flex; align-items:center; gap:1rem;">
+      <img src={`/uploads/${item.photo_key}`} alt="" style="width:120px; height:90px; object-fit:cover; border-radius:6px;" />
+      <p style="margin:0; color:var(--cream-muted); font-size:.85rem;">Current photo. Upload a new one below to replace it.</p>
+    </div>
+  )}
+
+  <form method="POST" enctype="multipart/form-data" class="card" id="item-form">
+    <div class="field">
+      <label for="name">Name</label>
+      <input type="text" id="name" name="name" required maxlength="80" value={item.name} />
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="categoryId">Category</label>
+        <select id="categoryId" name="categoryId" required>
+          {categories.map((c) => <option value={c.id} selected={c.id === item.category_id}>{c.name}</option>)}
+        </select>
+      </div>
+      <div class="field">
+        <label for="price">Price (₹)</label>
+        <input type="number" id="price" name="price" min="0" step="1" placeholder="Leave blank for Price TBC" value={item.price ?? ''} />
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="description">Description</label>
+      <textarea id="description" name="description" rows="2" maxlength="200">{item.description}</textarea>
+    </div>
+
+    <div class="row" style="margin-bottom: 1.1rem;">
+      <label class="check"><input type="checkbox" name="veg" value="1" checked={!!item.veg} /> Vegetarian</label>
+      <label class="check"><input type="checkbox" name="bestseller" value="1" checked={!!item.bestseller} /> Bestseller</label>
+      <label class="check"><input type="checkbox" name="available" value="1" checked={!!item.available} /> Visible on the site</label>
+    </div>
+
+    <div class="field">
+      <label for="photo">Replace photo <span style="opacity:.6;">(optional — compressed in your browser before upload)</span></label>
+      <input type="file" id="photo" name="photo" accept="image/*" />
+      <p id="photo-status" style="font-size:.8rem; color:var(--cream-muted); margin:.4rem 0 0;"></p>
+    </div>
+
+    <button type="submit" class="btn btn--primary" style="margin-top:.5rem;">Save changes</button>
+    <a href="/admin" class="btn" style="margin-top:.5rem; margin-left:.5rem;">Cancel</a>
+  </form>
+
+  <form method="POST" style="margin-top:1.5rem; margin-right:.5rem; display:inline-block;">
+    <input type="hidden" name="_action" value="duplicate" />
+    <button type="submit" class="btn">Duplicate</button>
+  </form>
+
+  <form method="POST" style="margin-top:1.5rem; display:inline-block;" id="delete-form" data-name={item.name}>
+    <input type="hidden" name="_action" value="delete" />
+    <button type="submit" class="btn btn--danger">Delete this item</button>
+  </form>
+
+  <script>
+    // Reads the item name from a data attribute rather than building the
+    // confirm() call as a server-interpolated string — a name containing a
+    // quote character would otherwise break the inline handler (or worse).
+    const deleteForm = document.getElementById('delete-form');
+    deleteForm?.addEventListener('submit', (e) => {
+      if (!confirm(`Delete "${deleteForm.dataset.name}" for good? This can't be undone.`)) {
+        e.preventDefault();
+      }
+    });
+  </script>
+  <script src="../../../scripts/photo-compress.ts"></script>
+</AdminLayout>

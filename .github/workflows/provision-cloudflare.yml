@@ -23,53 +23,100 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - run: npm ci
 
       - name: Ensure D1 database exists
         id: d1
         run: |
-          set -e
+          # GitHub Actions runs bash steps as `bash -e {0}` by default. A
+          # bare `VAR=$(cmd 2>&1); STATUS=$?` still aborts on the assignment
+          # itself the instant `cmd` fails — joining with `;` doesn't shield
+          # it from errexit, only `&&`/`||`/an `if` condition/`set +e` does.
+          # (First attempt at this fix used exactly that `;` pattern and
+          # still lost the output; `set +e` is the actual fix.) Turned off
+          # here since every call below checks its own exit status by hand.
+          set +e
           UUID_RE='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
-          EXISTING=$(npx wrangler d1 list --json 2>/dev/null | node -e "
+
+          LIST_OUT=$(npx wrangler d1 list --json 2>&1); LIST_STATUS=$?
+          echo "$LIST_OUT"
+          if [ $LIST_STATUS -ne 0 ]; then
+            echo "::error::wrangler d1 list failed (exit $LIST_STATUS) — see output above, likely CLOUDFLARE_API_TOKEN."
+            exit 1
+          fi
+
+          EXISTING=$(echo "$LIST_OUT" | node -e "
             let s=''; process.stdin.on('data',d=>s+=d).on('end',()=>{
               try { const list = JSON.parse(s); const m = list.find(d => d.name === 'nctaj-menu'); console.log(m ? m.uuid : ''); }
               catch { console.log(''); }
-            });" || true)
+            });")
           if [ -n "$EXISTING" ]; then
             echo "D1 database already exists: $EXISTING"
             echo "id=$EXISTING" >> "$GITHUB_OUTPUT"
           else
-            OUT=$(npx wrangler d1 create nctaj-menu 2>&1)
-            echo "$OUT"
-            ID=$(echo "$OUT" | grep -oE "$UUID_RE" | head -1)
-            if [ -z "$ID" ]; then echo "Could not extract database_id from create output" >&2; exit 1; fi
+            CREATE_OUT=$(npx wrangler d1 create nctaj-menu 2>&1); CREATE_STATUS=$?
+            echo "$CREATE_OUT"
+            if [ $CREATE_STATUS -ne 0 ]; then
+              echo "::error::wrangler d1 create failed (exit $CREATE_STATUS) — see output above."
+              exit 1
+            fi
+            ID=$(echo "$CREATE_OUT" | grep -oE "$UUID_RE" | head -1)
+            if [ -z "$ID" ]; then echo "::error::Could not extract database_id from create output above." ; exit 1; fi
             echo "id=$ID" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Ensure R2 bucket exists
         run: |
-          npx wrangler r2 bucket create nctaj-menu-images 2>&1 || echo "Bucket probably already exists — continuing."
+          set +e
+          OUT=$(npx wrangler r2 bucket create nctaj-menu-images 2>&1); STATUS=$?
+          echo "$OUT"
+          if [ $STATUS -eq 0 ] || echo "$OUT" | grep -qi "already exists"; then
+            exit 0
+          fi
+          if echo "$OUT" | grep -qi "enable R2 through the Cloudflare Dashboard\|code: 10042"; then
+            echo "::warning::R2 isn't enabled on this Cloudflare account yet (error 10042) — skipping bucket creation and photo upload for now. Menu items will seed with the site's existing 'Photo pending' placeholder; re-run this workflow once R2 is enabled to add real photos."
+            exit 0
+          fi
+          echo "::error::wrangler r2 bucket create failed (exit $STATUS) — see output above."
+          exit 1
 
       - name: Ensure KV namespace exists
         id: kv
         run: |
-          set -e
-          UUID_RE='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
-          EXISTING=$(npx wrangler kv namespace list 2>/dev/null | node -e "
+          set +e
+          # Unlike D1's dashed database_id, a KV namespace id is a plain
+          # 32-char hex string with no dashes — confirmed by a real create
+          # ("id": "12f74d82e7cb4ea48ed8f48423e968f2") that this regex
+          # missed entirely on the previous run, silently failing extraction
+          # even though wrangler had already created the namespace.
+          ID_RE='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{32}'
+
+          LIST_OUT=$(npx wrangler kv namespace list 2>&1); LIST_STATUS=$?
+          echo "$LIST_OUT"
+          if [ $LIST_STATUS -ne 0 ]; then
+            echo "::error::wrangler kv namespace list failed (exit $LIST_STATUS) — see output above."
+            exit 1
+          fi
+
+          EXISTING=$(echo "$LIST_OUT" | node -e "
             let s=''; process.stdin.on('data',d=>s+=d).on('end',()=>{
               try { const list = JSON.parse(s); const m = list.find(n => (n.title||'').includes('SESSION')); console.log(m ? m.id : ''); }
               catch { console.log(''); }
-            });" || true)
+            });")
           if [ -n "$EXISTING" ]; then
             echo "KV namespace already exists: $EXISTING"
             echo "id=$EXISTING" >> "$GITHUB_OUTPUT"
           else
-            OUT=$(npx wrangler kv namespace create SESSION 2>&1)
-            echo "$OUT"
-            ID=$(echo "$OUT" | grep -oE "$UUID_RE" | head -1)
-            if [ -z "$ID" ]; then echo "Could not extract namespace id from create output" >&2; exit 1; fi
+            CREATE_OUT=$(npx wrangler kv namespace create SESSION 2>&1); CREATE_STATUS=$?
+            echo "$CREATE_OUT"
+            if [ $CREATE_STATUS -ne 0 ]; then
+              echo "::error::wrangler kv namespace create failed (exit $CREATE_STATUS) — see output above."
+              exit 1
+            fi
+            ID=$(echo "$CREATE_OUT" | grep -oE "$ID_RE" | head -1)
+            if [ -z "$ID" ]; then echo "::error::Could not extract namespace id from create output above." ; exit 1; fi
             echo "id=$ID" >> "$GITHUB_OUTPUT"
           fi
 

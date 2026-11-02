@@ -1,0 +1,41 @@
+name: Set up R2 photos
+
+# Creates the R2 bucket, applies pending D1 migrations (additive only) and
+# uploads the starter photos, linking them only to items with no photo yet.
+# Never wipes menu data — unlike provision-cloudflare.yml's seeding step.
+# Runs when this file or the script changes, or manually.
+on:
+  workflow_dispatch: {}
+  push:
+    paths:
+      - .github/workflows/setup-r2.yml
+      - scripts/setup-r2.mjs
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+
+      - name: Ensure R2 bucket exists
+        run: |
+          set +e
+          OUT=$(npx wrangler r2 bucket create nctaj-menu-images 2>&1); STATUS=$?
+          echo "$OUT"
+          if [ $STATUS -eq 0 ] || echo "$OUT" | grep -qi "already exists"; then exit 0; fi
+          exit 1
+
+      - name: Apply pending D1 migrations
+        run: npx wrangler d1 migrations apply nctaj-menu --remote
+
+      - name: Upload photos and link them to items without one
+        run: node scripts/setup-r2.mjs

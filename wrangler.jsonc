@@ -1,14 +1,59 @@
 {
-  // Static-assets-only Worker: no `main` entry point, so Cloudflare just
-  // serves ./dist from the edge. When the cart arrives, add a `main` script
-  // here and the same Worker serves the site AND the API on one domain.
+  // Full Worker now: Astro's Cloudflare adapter builds a server entry that
+  // reads/writes D1 for menu data and R2 for photos, with static assets
+  // (CSS/JS/fonts/seed photos) served alongside it from dist/client.
+  //
+  // No "main" here on purpose. The adapter defaults it to the bare specifier
+  // "@astrojs/cloudflare/entrypoints/server", which Vite resolves as a
+  // module rather than checking it exists on disk up front — a literal path
+  // like "./dist/server/entry.mjs" would make the Cloudflare Vite plugin
+  // fail every `astro build` on a clean checkout, since it validates that
+  // path before the build has produced it. The adapter writes a real,
+  // deployable wrangler.json (with main pointing at the actual built entry)
+  // into dist/server/ at the end of the build — `npm run deploy` uses that
+  // one, not this file, for `wrangler deploy`.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "nc-taj",
   "compatibility_date": "2026-09-21",
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
-    "directory": "./dist",
-    // Astro builds /menu/index.html; this serves it at /menu without a redirect.
+    "directory": "./dist/client",
+    "binding": "ASSETS",
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "404-page"
+  },
+
+  // --- D1: menu items + categories, editable from /admin -----------------
+  // Real database_id — provisioned via .github/workflows/provision-cloudflare.yml.
+  // `astro dev` / `wrangler dev --local` still simulate this locally with no
+  // network access needed; this id only matters once actually deployed.
+  "d1_databases": [
+    { "binding": "DB", "database_name": "nctaj-menu", "database_id": "965d0e4d-d448-4938-b018-80948dadc6ee" }
+  ],
+
+  // --- R2: admin-uploaded and seed menu photos ----------------------------
+  // Real bucket — created and filled with the starter photos (menu/<name>.jpg)
+  // by .github/workflows/setup-r2.yml, which only links photos to items that
+  // have none, so /admin edits survive. Don't re-run provision-cloudflare.yml
+  // for photos: its seed step wipes and reloads every menu item and category.
+  "r2_buckets": [
+    { "binding": "MENU_IMAGES", "bucket_name": "nctaj-menu-images" }
+  ],
+
+  // Astro's own session helper wants a KV namespace by default; unused here
+  // (auth is a signed cookie, not Astro's session API) but harmless to keep —
+  // free tier, no setup cost. Real id, same provisioning workflow as D1 above.
+  "kv_namespaces": [
+    { "binding": "SESSION", "id": "12f74d82e7cb4ea48ed8f48423e968f2" }
+  ],
+
+  // --- Web Push ------------------------------------------------------------
+  // The VAPID public key is exactly that — public, sent to every visitor's
+  // browser as the applicationServerKey when they subscribe (src/components
+  // /Footer.astro) — safe to commit. Its matching private key is the secret
+  // half and never goes here; it's VAPID_PRIVATE_KEY_JWK in .dev.vars
+  // locally and `wrangler secret put VAPID_PRIVATE_KEY_JWK` in production.
+  "vars": {
+    "VAPID_PUBLIC_KEY": "BNaoQMF2wIasOEKt16BiEOHtAaISk11Dex4gp2jlDqNrKTIKhwSHvLEZHfRfyMZxAxmKy38StqD1S5fiKlt9bVw"
   }
 }

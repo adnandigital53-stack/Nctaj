@@ -1,8 +1,14 @@
 ---
+import { env } from 'cloudflare:workers';
 import Base from '../layouts/Base.astro';
 import MenuItem from '../components/MenuItem.astro';
 import AggregatorStrip from '../components/AggregatorStrip.astro';
-import menu from '../data/menu.json';
+import site from '../data/site.json';
+import { getMenuSafe } from '../lib/menu-db';
+
+export const prerender = false; // live D1 read — admin edits show up with no rebuild
+
+const { menu, error: menuError } = await getMenuSafe(env.DB);
 ---
 <Base path="/menu" title="Menu" description="Biryani, North Indian, desserts, coffee and drinks — the full NC Taj menu.">
   <section class="section section--tight page-head page-head--flush">
@@ -14,31 +20,56 @@ import menu from '../data/menu.json';
   </section>
 
   <div class="wrap">
-    <div class="filters" role="group" aria-label="Filter menu by dietary preference">
-      <button class="filter" type="button" data-filter="all" aria-pressed="true">All</button>
-      <button class="filter" type="button" data-filter="veg" aria-pressed="false">Veg</button>
-      <button class="filter" type="button" data-filter="nonveg" aria-pressed="false">Non-veg</button>
-
-      <nav class="jump" aria-label="Jump to category">
-        {menu.categories
-          .filter((cat) => cat.items.some((i) => i.available))
-          .map((cat) => <a href={`#${cat.id}`} data-jump={cat.id}>{cat.name}</a>)}
-      </nav>
-    </div>
-
-    <p class="visually-hidden" role="status" aria-live="polite" id="filter-status"></p>
-
-    {menu.categories.filter((cat) => cat.items.some((i) => i.available)).map((cat) => (
-      <section class="menu-category" id={cat.id} data-category>
-        <div class="menu-category__head">
-          <p class="eyebrow">{cat.name}</p>
-          <p class="menu-category__blurb">{cat.blurb}</p>
+    {menuError ? (
+      <div class="card" style="padding: 2rem; text-align: center; margin-bottom: 2rem;">
+        <p style="margin: 0 0 1rem; font-size: var(--step-lg); font-family: var(--font-display);">
+          The menu's having trouble loading right now.
+        </p>
+        <p style="color: var(--cream-muted); margin: 0 0 1.5rem;">
+          Give us a call and we'll walk you through it — or check back in a few minutes.
+        </p>
+        <a class="btn btn--primary" href={`tel:${site.contact.phone[0]?.dial}`}>Call {site.contact.phone[0]?.display}</a>
+      </div>
+    ) : (
+      <Fragment>
+        <div class="menu-search">
+          <input type="search" id="menu-search" placeholder="Search the menu…" aria-label="Search menu items" autocomplete="off" />
         </div>
-        <div class="grid grid--3">
-          {cat.items.filter((i) => i.available).map((item, i) => <MenuItem item={item} index={i} />)}
+
+        <div class="filters" role="group" aria-label="Filter menu by dietary preference">
+          <button class="filter" type="button" data-filter="all" aria-pressed="true">All</button>
+          <button class="filter" type="button" data-filter="veg" aria-pressed="false">Veg</button>
+          <button class="filter" type="button" data-filter="nonveg" aria-pressed="false">Non-veg</button>
+
+          <nav class="jump" aria-label="Jump to category">
+            {menu.categories
+              .filter((cat) => cat.items.some((i) => i.available))
+              .map((cat) => <a href={`#${cat.id}`} data-jump={cat.id}>{cat.name}</a>)}
+          </nav>
         </div>
-      </section>
-    ))}
+
+        <p class="visually-hidden" role="status" aria-live="polite" id="filter-status"></p>
+        <p class="menu-search__empty" id="menu-search-empty" hidden>No dishes match your search.</p>
+
+        {menu.categories.filter((cat) => cat.items.some((i) => i.available)).map((cat, catIndex) => (
+          <section class="menu-category" id={cat.id} data-category>
+            <div class="menu-category__head">
+              <p class="eyebrow">{cat.name}</p>
+              <p class="menu-category__blurb">{cat.blurb}</p>
+            </div>
+            <div class="grid grid--3">
+              {cat.items.filter((i) => i.available).map((item, i) => (
+                // Only the very first category's first row is actually
+                // above the fold on load — every other category's "first
+                // row" is below it, so only this combination should skip
+                // loading="lazy" (see PhotoSlot's `eager` prop).
+                <MenuItem item={item} index={i} eager={catIndex === 0 && i < 3} />
+              ))}
+            </div>
+          </section>
+        ))}
+      </Fragment>
+    )}
 
     <div style="padding-block: clamp(2rem, 6vw, 4rem);">
       <AggregatorStrip placement="menu" />
@@ -59,12 +90,28 @@ import menu from '../data/menu.json';
         const items = document.querySelectorAll('.item');
         const categories = document.querySelectorAll('[data-category]');
         const status = document.getElementById('filter-status');
+        const searchInput = document.getElementById('menu-search');
+        const searchEmpty = document.getElementById('menu-search-empty');
 
-        const apply = (mode) => {
+        // Mode (all/veg/nonveg) and the search term are independent axes —
+        // a card shows only when it clears both. State lives here rather
+        // than being passed around so either the buttons or the search box
+        // can trigger a re-render without needing to know about the other.
+        let mode = document.querySelector('.filter[aria-pressed="true"]')?.dataset.filter ?? 'all';
+        let search = '';
+
+        const matchesSearch = (item) => {
+          if (!search) return true;
+          const name = item.querySelector('.item__name')?.textContent.toLowerCase() ?? '';
+          const desc = item.querySelector('.item__desc')?.textContent.toLowerCase() ?? '';
+          return name.includes(search) || desc.includes(search);
+        };
+
+        const apply = () => {
           items.forEach((item) => {
             const isVeg = item.dataset.veg === 'true';
-            const show = mode === 'all' || (mode === 'veg' && isVeg) || (mode === 'nonveg' && !isVeg);
-            item.hidden = !show;
+            const modeOk = mode === 'all' || (mode === 'veg' && isVeg) || (mode === 'nonveg' && !isVeg);
+            item.hidden = !(modeOk && matchesSearch(item));
           });
 
           // Hide a category heading entirely when the filter empties it.
@@ -76,6 +123,7 @@ import menu from '../data/menu.json';
           });
 
           if (status) status.textContent = `${shown} items shown`;
+          if (searchEmpty) searchEmpty.hidden = !(search && shown === 0);
         };
 
         buttons.forEach((btn) => {
@@ -83,7 +131,7 @@ import menu from '../data/menu.json';
           btn.dataset.bound = '1';
           btn.addEventListener('click', () => {
             buttons.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
-            const mode = btn.dataset.filter;
+            mode = btn.dataset.filter;
 
             // FLIP: note where every visible card is, apply the filter at once,
             // then glide each surviving card from its old spot to its new one.
@@ -95,7 +143,7 @@ import menu from '../data/menu.json';
               items.forEach((el) => { if (!el.hidden) before.set(el, el.getBoundingClientRect()); });
             }
 
-            apply(mode);
+            apply();
 
             if (!reduce) {
               items.forEach((el) => {
@@ -117,6 +165,16 @@ import menu from '../data/menu.json';
             }
           });
         });
+
+        if (searchInput && !searchInput.dataset.bound) {
+          searchInput.dataset.bound = '1';
+          // Plain re-render, no FLIP — animating every keystroke is noise,
+          // not delight.
+          searchInput.addEventListener('input', () => {
+            search = searchInput.value.trim().toLowerCase();
+            apply();
+          });
+        }
 
         // --- scroll-spy for the jump chips --------------------------
         const chips = document.querySelectorAll('[data-jump]');

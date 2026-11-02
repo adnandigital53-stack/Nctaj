@@ -1,30 +1,28 @@
 ---
-import { Image } from 'astro:assets';
-
-// Real photo when one exists, a designed slot when it doesn't.
-// menu.json's `photo` field is just the item id — resolved here against
-// every file in src/assets/menu, so Astro can optimize each one (AVIF/WebP
-// + srcset) at build time. A path can't be optimized this way, only a
-// statically-known import, hence the glob.
-const images = import.meta.glob<{ default: ImageMetadata }>(
-  '/src/assets/menu/*.{jpg,jpeg,png}',
-  { eager: true },
-);
-
-const { src = null, alt = '', mark = '' } = Astro.props;
-const resolved = src ? images[`/src/assets/menu/${src}.jpg`]?.default : null;
+// Real photo when one exists, a designed slot when it doesn't. Every photo
+// (the original seed set and anything the admin uploads) lives in R2 and is
+// served at /uploads/menu/<id>.jpg — see src/pages/uploads/[...key].ts.
+// A single plain <img>, not astro:assets, because admin-uploaded photos
+// aren't known at build time and so can't go through Astro's build-time
+// image optimizer; the seed photos are already pre-sized for the web.
+//
+// `eager`: the first row of a grid is already in the viewport on load, so
+// loading="lazy" there does the opposite of what it's for — it makes the
+// browser deprioritize fetching what's likely the page's own Largest
+// Contentful Paint candidate. Callers pass this in for the first few items
+// only; everything below the fold stays lazy.
+const { src = null, alt = '', mark = '', eager = false } = Astro.props;
 ---
 <div class="photo">
-  {resolved ? (
-    <Image
-      src={resolved}
+  {src ? (
+    <img
+      src={`/uploads/menu/${src}.jpg`}
       alt={alt}
-      loading="lazy"
+      loading={eager ? 'eager' : 'lazy'}
+      fetchpriority={eager ? 'high' : undefined}
       decoding="async"
-      widths={[320, 480, 640]}
-      sizes="(min-width: 1000px) 360px, (min-width: 640px) 45vw, 90vw"
-      format="avif"
-      quality={72}
+      width="640"
+      height="480"
     />
   ) : (
     <Fragment>
