@@ -54,6 +54,6 @@
   // half and never goes here; it's VAPID_PRIVATE_KEY_JWK in .dev.vars
   // locally and `wrangler secret put VAPID_PRIVATE_KEY_JWK` in production.
   "vars": {
-    "VAPID_PUBLIC_KEY": "BLymN1FN64s3b026DQNYvogKS-Cwv_GewVnOpAPw7-VbdKRLz4VKAo56WeW0McrEbUU1KVEwJ3U73HH_SN4ugjM"
+    "VAPID_PUBLIC_KEY": "BNaoQMF2wIasOEKt16BiEOHtAaISk11Dex4gp2jlDqNrKTIKhwSHvLEZHfRfyMZxAxmKy38StqD1S5fiKlt9bVw"
   }
 }
